@@ -1,4 +1,4 @@
-# 🌾 IndicAgri: Intelligent Agricultural Chatbot System for India
+# 🌾 IndicAgri: IndicAgri: Retrieval Augmented Agricultural Platform for India
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat&logo=python&logoColor=white)](https://python.org)
 [![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-Dataset-yellow)](https://huggingface.co/datasets/ShuvBan/IndicAgri)
