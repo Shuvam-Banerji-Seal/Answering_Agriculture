@@ -36,8 +36,7 @@ graph TD
     
     H[Voice Input] --> A
     I[Text Input] --> A
-    J[Image Input] --> A
-    K[API Input] --> A
+    J[API Input] --> A
     
     L[Agricultural Knowledge DB] --> D
     M[Weather & Climate Data] --> D
