@@ -1,0 +1,10 @@
+streamlit 
+audio-recorder-streamlit 
+streamlit-float
+openai-whisper
+transformers 
+accelerate 
+bitsandbytes 
+huggingface_hub 
+python-dotenv
+
