@@ -1,0 +1,3 @@
+"""
+Frontend testing module
+"""
