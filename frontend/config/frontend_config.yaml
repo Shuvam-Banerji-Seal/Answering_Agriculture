@@ -1,0 +1,54 @@
+# IndicAgri Frontend Configuration
+
+app:
+  name: "IndicAgri"
+  version: "1.0.0"
+  description: "AI-powered agricultural guidance for Indian farmers"
+  
+server:
+  host: "0.0.0.0"
+  port: 8000
+  debug: true
+  reload: true
+
+api:
+  base_url: "/api/v1"
+  timeout: 30
+  retry_count: 3
+
+features:
+  voice_recognition: true
+  speech_synthesis: true
+  offline_mode: true
+  push_notifications: false
+  
+languages:
+  default: "hi"
+  supported:
+    - "hi"  # Hindi
+    - "en"  # English
+    - "bn"  # Bengali
+    - "te"  # Telugu
+    - "mr"  # Marathi
+    - "ta"  # Tamil
+    - "gu"  # Gujarati
+    - "kn"  # Kannada
+    - "ml"  # Malayalam
+    - "pa"  # Punjabi
+
+ui:
+  theme: "agricultural"
+  primary_color: "#2E7D2E"
+  secondary_color: "#4CAF50"
+  accent_color: "#FF8F00"
+  
+performance:
+  lazy_loading: true
+  image_optimization: true
+  caching: true
+  compression: true
+
+analytics:
+  enabled: false  # Set to true for production
+  track_queries: true
+  track_voice_usage: true
