@@ -16,6 +16,7 @@ Features:
 import asyncio
 import json
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -141,7 +142,13 @@ class AgricultureAgent:
         self.role = role
         self.port = port
         self.model = model
-        self.base_url = f"http://localhost:{port}"
+        # Use environment variable for host or default to localhost
+        ollama_host = os.getenv('OLLAMA_HOST', 'localhost:11434')
+        if ':' in ollama_host:
+            host, _ = ollama_host.split(':', 1)
+        else:
+            host = ollama_host
+        self.base_url = f"http://{host}:{port}"
         self.search_engine = AgricultureSearchEngine()
         
         # Role-specific system prompts
@@ -288,10 +295,17 @@ class AgricultureChatbot:
         """Check which Ollama instances are available"""
         available_ports = []
         
+        # Get Ollama host from environment variable
+        ollama_host = os.getenv('OLLAMA_HOST', 'localhost:11434')
+        if ':' in ollama_host:
+            host, _ = ollama_host.split(':', 1)
+        else:
+            host = ollama_host
+        
         for i in range(self.num_agents):
             port = self.base_port + i
             try:
-                response = requests.get(f"http://localhost:{port}/api/tags", timeout=5)
+                response = requests.get(f"http://{host}:{port}/api/tags", timeout=5)
                 if response.status_code == 200:
                     available_ports.append(port)
                     self.logger.info(f"Ollama instance available on port {port}")
@@ -453,8 +467,15 @@ ANSWER:"""
             
             synthesis_port = available_ports[0]
             
+            # Get Ollama host from environment variable
+            ollama_host = os.getenv('OLLAMA_HOST', 'localhost:11434')
+            if ':' in ollama_host:
+                host, _ = ollama_host.split(':', 1)
+            else:
+                host = ollama_host
+            
             response = requests.post(
-                f"http://localhost:{synthesis_port}/api/generate",
+                f"http://{host}:{synthesis_port}/api/generate",
                 json={
                     "model": "gemma3:1b",
                     "prompt": synthesis_prompt,

@@ -1,20 +1,12 @@
-# Agriculture Bot Searcher 🌾🎤
+# Agriculture Bot Searcher 🌾
 
-A sophisticated multi-agent chatbot system with **voice input capabilities** that deploys specialized Ollama agents to search the internet and provide comprehensive answers to agricultural queries with inline citations. Now supports **Indian language voice input** with automatic English translation!
+A sophisticated multi-agent chatbot system that deploys specialized Ollama agents to search the internet and provide comprehensive answers to agricultural queries with inline citations.
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Voice Support](https://img.shields.io/badge/voice-10%20Indian%20languages-green.svg)](https://github.com/AI4Bharat)
 
 ## ✨ Features
 
-### 🎤 Voice Input (NEW!)
-- **🗣️ Indian Language Support**: Hindi, Marathi, Bengali, Telugu, Tamil, Gujarati, Kannada, Malayalam, Punjabi, Odia
-- **🔄 Automatic Translation**: Speech-to-text with English translation using AI4Bharat models
-- **🌐 Multiple Backends**: SarvamAI, NeMo Conformer, and IndicTrans2 integration
-- **📱 Web Interface**: Real-time voice recording and file upload support
-
-### 🤖 Advanced Agriculture AI
 - **🤖 Multi-Agent System**: Deploys specialized agents with different agricultural expertise
 - **🔍 Real-time Web Search**: Internet search integration for current information
 - **📚 Inline Citations**: Automatic citation generation with source links
@@ -26,63 +18,31 @@ A sophisticated multi-agent chatbot system with **voice input capabilities** tha
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.7 or higher
 - [Ollama](https://ollama.ai/download) installed and running
 - Internet connection for web search
-- **For Voice Features**: CUDA-compatible GPU (recommended), microphone access
 
-### Installation Options
+### Installation
 
-#### Option 1: Voice-Enabled Setup (Recommended)
-```bash
-# Navigate to the project directory
-cd agri_bot_searcher
+1. **Clone or extract the project**:
+   ```bash
+   cd agri_bot_searcher
+   ```
 
-# Run the voice-enabled setup
-./start_voice_system.sh
-```
+2. **Run the install script**:
+   ```bash
+   ./install.sh
+   ```
 
-#### Option 2: Manual Installation
-```bash
-# Install voice-enabled dependencies
-pip install -r requirements_voice.txt
+   Or manually:
+   ```bash
+   pip install -r requirements.txt
+   python scripts/setup_agriculture_chatbot.py
+   ```
 
-# Install additional dependencies
-pip install git+https://github.com/AI4Bharat/IndicTrans2.git
-pip install nemo-toolkit[asr]
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your API keys
-```
-
-#### Option 3: Text-Only Setup
-```bash
-# Original installation method
-./install.sh
-pip install -r requirements.txt
-```
+3. **Start Ollama instances** (follow the setup script instructions)
 
 ### Usage
-
-#### 🎤 Voice-Enabled Web Interface (NEW!)
-```bash
-# Start the voice-enabled interface
-python src/voice_web_ui.py
-
-# Open browser: http://localhost:5000
-# - Click microphone to record voice in Indian languages
-# - Upload audio files for transcription
-# - Use text input as before
-```
-
-#### 🌐 Original Web Interface
-```bash
-# Start the web interface
-python src/web_ui.py
-
-# Open browser: http://localhost:5000
-```
 
 #### Command Line
 ```bash
@@ -94,75 +54,6 @@ python src/agriculture_chatbot.py --query "Best fertilizer for wheat" --exact
 
 # Interactive mode
 python tests/test_agriculture_chatbot.py
-
-# Test voice transcription
-python demo_voice_integration.py
-```
-
-## 🎤 Voice Input Configuration
-
-### Supported Languages
-| Language | Code | Script | Status |
-|----------|------|---------|--------|
-| Hindi | `hi` | Devanagari | ✅ |
-| Marathi | `mr` | Devanagari | ✅ |
-| Bengali | `bn` | Bengali | ✅ |
-| Telugu | `te` | Telugu | ✅ |
-| Tamil | `ta` | Tamil | ✅ |
-| Gujarati | `gu` | Gujarati | ✅ |
-| Kannada | `kn` | Kannada | ✅ |
-| Malayalam | `ml` | Malayalam | ✅ |
-| Punjabi | `pa` | Gurmukhi | ✅ |
-| Odia | `or` | Odia | ✅ |
-
-### Voice Setup Options
-
-#### 1. SarvamAI (Recommended)
-```bash
-# Get API key from https://sarvam.ai/
-export SARVAM_API_KEY="your_api_key"
-
-# Advantages:
-# - High accuracy (85-95%)
-# - Fast processing (2-5 seconds)
-# - All Indian languages supported
-# - Direct English output
-```
-
-#### 2. AI4Bharat Models (Free)
-```bash
-# Download Conformer model
-wget -O models/conformer.nemo "https://storage.googleapis.com/conformer_models/conformer.nemo"
-
-# Advantages:
-# - Free and open source
-# - Local processing (privacy)
-# - Customizable
-# - Works offline
-```
-
-#### 3. Hybrid Mode (Best)
-```bash
-# Use both - SarvamAI as primary, Conformer as fallback
-# Automatically configured when both are available
-```
-
-### Environment Setup
-```bash
-# Create .env file
-cat > .env << EOL
-# SarvamAI API Key (optional but recommended)
-SARVAM_API_KEY=your_sarvam_api_key
-
-# HuggingFace Token (for model downloads)
-HUGGINGFACE_TOKEN=your_hf_token
-
-# Model paths
-CONFORMER_MODEL_PATH=./models/conformer.nemo
-
-# Device settings
-TORCH_DEVICE=cuda  # or cpu
-EOL
 ```
 
 #### Web Interface (Recommended)
