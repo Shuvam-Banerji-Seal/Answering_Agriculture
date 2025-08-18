@@ -105,14 +105,29 @@ install_base_dependencies() {
     
     source "$VENV_PATH/bin/activate"
     
-    # Install core agri_bot_searcher dependencies
+    # Always install critical dependencies first
+    log_info "Installing critical core packages..."
+    pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+    pip install duckduckgo-search>=6.0.0 requests>=2.28.0
+    pip install flask>=2.0.0 flask-cors>=4.0.0 pyyaml>=6.0
+    pip install beautifulsoup4>=4.9.3 lxml>=4.6.3 urllib3>=1.26.0
+    pip install html5lib>=1.1 dataclasses-json>=0.5.0 colorlog>=6.0.0
+    
+    # Install from requirements file if available
     if [ -f "$AGRI_BOT_PATH/requirements.txt" ]; then
+        log_info "Installing additional dependencies from requirements.txt..."
         pip install -r "$AGRI_BOT_PATH/requirements.txt"
-        log_success "Base dependencies installed"
-    else
-        log_warning "requirements.txt not found, installing core packages manually"
-        pip install requests duckduckgo-search flask flask-cors pyyaml beautifulsoup4 lxml urllib3 html5lib dataclasses-json colorlog
     fi
+    
+    # Install complete requirements if available
+    if [ -f "$AGRI_BOT_PATH/requirements_complete.txt" ]; then
+        log_info "Installing complete dependencies..."
+        pip install -r "$AGRI_BOT_PATH/requirements_complete.txt" || {
+            log_warning "Some packages from complete requirements failed, continuing..."
+        }
+    fi
+    
+    log_success "Base dependencies installed"
 }
 
 # Install Ollama
@@ -134,18 +149,50 @@ install_ollama() {
     if pgrep -x "ollama" > /dev/null; then
         log_warning "Ollama service is already running"
     else
-        ollama serve &
-        sleep 5  # Wait for service to start
-        log_success "Ollama service started"
+        # Start ollama in background
+        nohup ollama serve > /tmp/ollama.log 2>&1 &
+        sleep 8  # Wait longer for service to start properly
+        
+        # Verify ollama is responding
+        local max_attempts=10
+        local attempt=1
+        while [ $attempt -le $max_attempts ]; do
+            if curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
+                log_success "Ollama service started and responding"
+                break
+            else
+                log_info "Waiting for Ollama to start... (attempt $attempt/$max_attempts)"
+                sleep 3
+                ((attempt++))
+            fi
+        done
+        
+        if [ $attempt -gt $max_attempts ]; then
+            log_error "Ollama service failed to start properly"
+            return 1
+        fi
     fi
     
-    # Pull gemma3:1b model
-    log_info "Downloading gemma3:1b model..."
-    if ollama list | grep -q "gemma3:1b"; then
+    # Pull gemma3:1b model with error handling
+    log_info "Downloading gemma3:1b model (this may take several minutes)..."
+    if ollama list 2>/dev/null | grep -q "gemma3:1b"; then
         log_warning "gemma3:1b model already exists"
     else
-        ollama pull gemma3:1b
-        log_success "gemma3:1b model downloaded"
+        log_info "Downloading gemma3:1b model... This may take 5-10 minutes depending on your connection."
+        if ollama pull gemma3:1b; then
+            log_success "gemma3:1b model downloaded successfully"
+        else
+            log_error "Failed to download gemma3:1b model"
+            log_warning "You can download it manually later with: ollama pull gemma3:1b"
+            return 1
+        fi
+    fi
+    
+    # Verify model is available
+    if ollama list 2>/dev/null | grep -q "gemma3:1b"; then
+        log_success "gemma3:1b model is ready for use"
+    else
+        log_warning "gemma3:1b model verification failed"
     fi
 }
 
@@ -302,10 +349,27 @@ test_basic_functionality() {
     source "$VENV_PATH/bin/activate"
     cd "$AGRI_BOT_PATH"
     
-    # Test agriculture chatbot import
+    # Test critical imports
+    log_info "Testing Python dependencies..."
     python3 -c "
 import sys
 sys.path.append('src')
+
+# Test critical packages
+try:
+    import torch
+    print('✓ PyTorch imported successfully')
+except ImportError as e:
+    print(f'✗ PyTorch import failed: {e}')
+    sys.exit(1)
+
+try:
+    from duckduckgo_search import DDGS
+    print('✓ DuckDuckGo Search imported successfully')
+except ImportError as e:
+    print(f'✗ DuckDuckGo Search import failed: {e}')
+    sys.exit(1)
+
 try:
     from agriculture_chatbot import AgricultureChatbot
     print('✓ Agriculture chatbot imported successfully')
@@ -313,20 +377,56 @@ except ImportError as e:
     print(f'✗ Agriculture chatbot import failed: {e}')
     sys.exit(1)
 " || {
-        log_error "Basic functionality test failed"
+        log_error "Critical dependency test failed"
         return 1
     }
     
-    # Test ollama connection
+    # Test ollama connection and model
     if command -v ollama &> /dev/null; then
-        if ollama list | grep -q "gemma3:1b"; then
-            log_success "Ollama and gemma3:1b model are ready"
+        log_info "Testing Ollama connectivity..."
+        
+        # Check if service is running
+        if curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
+            log_success "Ollama service is responding"
+            
+            # Check if gemma3:1b model exists
+            if ollama list 2>/dev/null | grep -q "gemma3:1b"; then
+                log_success "gemma3:1b model is available"
+                
+                # Test model inference
+                log_info "Testing model inference..."
+                if echo "Hello" | ollama run gemma3:1b --format json > /dev/null 2>&1; then
+                    log_success "gemma3:1b model is working correctly"
+                else
+                    log_warning "gemma3:1b model inference test failed"
+                fi
+            else
+                log_warning "gemma3:1b model not found - attempting to download..."
+                if ollama pull gemma3:1b; then
+                    log_success "gemma3:1b model downloaded successfully"
+                else
+                    log_error "Failed to download gemma3:1b model"
+                    return 1
+                fi
+            fi
         else
-            log_warning "gemma3:1b model not found in ollama"
+            log_warning "Ollama service not responding - attempting to start..."
+            nohup ollama serve > /tmp/ollama.log 2>&1 &
+            sleep 5
+            
+            if curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
+                log_success "Ollama service started successfully"
+            else
+                log_error "Failed to start Ollama service"
+                return 1
+            fi
         fi
     else
-        log_warning "Ollama not found"
+        log_error "Ollama not found"
+        return 1
     fi
+    
+    log_success "All basic functionality tests passed"
 }
 
 # Main installation function
