@@ -103,16 +103,16 @@ if audio_record:
                 st.write(transcript)
             os.remove(web_audio_path)
 
-# if st.session_state.messages[-1]['role'] != "assistant":
-#     with st.chat_message('assistant'):
-#         with st.spinner('Thinking 🤔.....'):
-#             retrival= subprocess.check_output(["python", "agriculture_chatbot.py"], text=True)
-#             final_response=generate(st.session_state.messages)
-#             final_response=inference(model=llm,query=transcript,device=device,tokenizer=tokenizer,retrive=retrival)
-#             print(f'final response me ye mila hai ----------------------->{final_response}')
-#         st.write(final_response)
-#         st.session_state.messages.append({
-#             'role':'assistant',
-#             'content':final_response
-#         })
-#         print('final response likh diya hai ')
+if st.session_state.messages[-1]['role'] != "assistant":
+    with st.chat_message('assistant'):
+        with st.spinner('Thinking 🤔.....'):
+            retrival= subprocess.check_output(["python", "../agri_bot_searcher/src/agriculture_chatbot.py"], text=True)
+            final_response=generate(st.session_state.messages)
+            final_response=inference(model=llm,query=transcript,device=device,tokenizer=tokenizer,retrive=retrival)
+            print(f'final response me ye mila hai ----------------------->{final_response}')
+        st.write(final_response)
+        st.session_state.messages.append({
+            'role':'assistant',
+            'content':final_response
+        })
+        print('final response likh diya hai ')
