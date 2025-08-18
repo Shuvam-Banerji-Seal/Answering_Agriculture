@@ -1,0 +1,43 @@
+# Agriculture Bot Searcher - Python Dependencies
+
+# Core dependencies
+requests>=2.28.0
+duckduckgo-search>=6.0.0
+asyncio>=3.4.3
+
+# Web UI dependencies
+flask>=2.0.0
+flask-cors>=4.0.0
+pyyaml>=6.0
+
+# Development and testing (optional)
+pytest>=6.0.0
+
+# Core dependencies
+requests>=2.25.1
+duckduckgo-search>=3.8.0
+beautifulsoup4>=4.9.3
+lxml>=4.6.3
+
+# Additional web scraping and parsing
+urllib3>=1.26.0
+html5lib>=1.1
+
+# Data handling
+dataclasses-json>=0.5.0
+
+# Logging and utilities
+colorlog>=6.0.0
+
+# Web API (optional)
+flask>=2.0.0
+flask-cors>=3.0.0
+
+# Optional: For enhanced performance
+uvloop>=0.16.0; sys_platform != "win32"
+
+# Development dependencies (optional)
+pytest>=6.0.0
+pytest-asyncio>=0.18.0
+black>=21.0.0
+flake8>=3.9.0
