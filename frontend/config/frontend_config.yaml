@@ -23,7 +23,7 @@ features:
   push_notifications: false
   
 languages:
-  default: "hi"
+  default: "en"
   supported:
     - "hi"  # Hindi
     - "en"  # English
@@ -35,6 +35,7 @@ languages:
     - "kn"  # Kannada
     - "ml"  # Malayalam
     - "pa"  # Punjabi
+    - "od"  # Odia
 
 ui:
   theme: "agricultural"

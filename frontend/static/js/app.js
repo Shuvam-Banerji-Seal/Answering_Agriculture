@@ -3,7 +3,7 @@
 class IndicAgriApp {
     constructor() {
         this.speechManager = new SpeechManager();
-        this.currentLanguage = 'hi';
+    this.currentLanguage = 'en';
         this.apiBaseUrl = '/api/v1'; // Backend API endpoint
         this.isOnline = navigator.onLine;
         
@@ -260,16 +260,13 @@ class IndicAgriApp {
 
     changeLanguage(langCode, langText) {
         this.currentLanguage = langCode;
-        
         // Update button text
         const languageBtn = document.querySelector('.language-btn span');
         if (languageBtn) {
             languageBtn.textContent = langText;
         }
-
         // Update speech recognition language
         this.speechManager.setLanguage(langCode);
-
         // Update active state
         document.querySelectorAll('.language-option').forEach(option => {
             option.classList.remove('active');
@@ -277,11 +274,78 @@ class IndicAgriApp {
                 option.classList.add('active');
             }
         });
-
         // Save preference
         localStorage.setItem('indicagri_language', langCode);
-        
-        this.showNotification(`भाषा बदलकर ${langText} की गई`, 'success', 2000);
+        // Translate UI
+        this.translateUI(langCode);
+        this.showNotification(`Language switched to ${langText}`, 'success', 2000);
+
+    }
+
+    translateUI(langCode) {
+        // Simple translation map for demo (expand as needed)
+        const translations = {
+            en: {
+                'स्मार्ट कृषि सहायक': 'Smart Agriculture Assistant',
+                'आपका AI कृषि सलाहकार': 'Your AI Agriculture Advisor',
+                '22 भाषाओं में वैज्ञानिक कृषि मार्गदर्शन': 'Scientific guidance in 22 languages',
+                'बोलें या टाइप करें अपना कृषि प्रश्न': 'Speak or type your farming question',
+                'उदाहरण: धान की फसल में पीले पत्ते क्यों हो रहे हैं?': 'Example: Why are rice crop leaves turning yellow?',
+                'मौसम': 'Weather',
+                'रोग पहचान': 'Disease Detection',
+                'बाज़ार भाव': 'Market Price',
+                'सरकारी योजनाएं': 'Govt Schemes',
+                'हमारी सुविधाएं': 'Our Features',
+                'फसल सुझाव': 'Crop Recommendation',
+                'आपकी मिट्टी और जलवायु के अनुसार सबसे अच्छी फसल चुनें': 'Choose the best crop for your soil and climate',
+                'AI संचालित': 'AI Powered',
+                'क्षेत्रीय डेटा': 'Regional Data',
+                'मौसम पूर्वानुमान': 'Weather Forecast',
+                'अगले 7 दिनों का सटीक मौसम पूर्वानुमान': 'Accurate 7-day weather forecast',
+                'रीयल-टाइम': 'Real-time',
+                'स्थानीय डेटा': 'Local Data',
+                'बाज़ार दर': 'Market Rates',
+                'अपनी फसल का सही समय और सही कीमत जानें': 'Know the right time and price for your crop',
+                'लाइव अपडेट': 'Live Updates',
+                'ट्रेंड एनालिसिस': 'Trend Analysis',
+                'सरकारी योजनाएं': 'Govt Schemes',
+                'आपके लिए उपलब्ध सभी कृषि योजनाओं की जानकारी': 'Information on all available agri schemes',
+                'योग्यता जांच': 'Eligibility Check',
+                'आवेदन सहायता': 'Application Help',
+                'रोग निदान': 'Disease Diagnosis',
+                'फसल की तस्वीर लेकर बीमारी की पहचान करें': 'Detect crop disease by uploading a photo',
+                'AI विज़न': 'AI Vision',
+                '95% सटीकता': '95% Accuracy',
+                'कृषि कैलेंडर': 'Agri Calendar',
+                'खरीफ, रबी और जायद की सही तारीखें जानें': 'Know correct dates for Kharif, Rabi, Zaid',
+                'क्षेत्र आधारित': 'Region Based',
+                'अनुस्मारक': 'Reminder',
+                'IndicAgri सहायक': 'IndicAgri Assistant',
+                'नमस्ते! मैं आपका IndicAgri सहायक हूं। आप मुझसे कृषि संबंधी कोई भी प्रश्न पूछ सकते हैं।': 'Hello! I am your IndicAgri Assistant. You can ask me any agriculture-related question.',
+                'अपना प्रश्न टाइप करें...': 'Type your question...',
+                'IndicAgri के बारे में': 'About IndicAgri',
+                'भारतीय किसानों के लिए AI-संचालित कृषि सहायक। 15,000+ शोध पत्रों और सरकारी डेटा से तैयार।': 'AI-powered assistant for Indian farmers. Built from 15,000+ research papers and government data.',
+                'उपयोगी लिंक': 'Useful Links',
+                'गोपनीयता नीति': 'Privacy Policy',
+                'संपर्क': 'Contact',
+                'सभी अधिकार सुरक्षित।': 'All rights reserved.',
+                '💚 भारतीय कृषि के लिए प्रेम से बनाया गया': '💚 Made with love for Indian agriculture',
+            },
+            hi: {} // Hindi is default, so no translation needed
+        };
+        // Translate all elements with textContent matching keys
+        const map = translations[langCode] || {};
+        Object.keys(map).forEach(hindiText => {
+            document.querySelectorAll('*').forEach(el => {
+                if (el.childNodes.length === 1 && el.textContent.trim() === hindiText) {
+                    el.textContent = map[hindiText];
+                }
+                // For input placeholders
+                if (el.placeholder && el.placeholder.trim() === hindiText) {
+                    el.placeholder = map[hindiText];
+                }
+            });
+        });
     }
 
     setupQuickActions() {
@@ -400,41 +464,35 @@ class IndicAgriApp {
     addChatMessage(message, sender = 'bot', sources = []) {
         const chatMessages = document.getElementById('chatMessages');
         if (!chatMessages) return;
-
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}-message`;
-
         const avatarDiv = document.createElement('div');
         avatarDiv.className = 'message-avatar';
         avatarDiv.innerHTML = sender === 'bot' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
-
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
-        
         let sourcesHtml = '';
         if (sources && sources.length > 0) {
             sourcesHtml = `
                 <div class="message-sources">
-                    <small>स्रोत: ${sources.map(source => 
+                    <small>Source: ${sources.map(source => 
                         `<a href="${source.url}" target="_blank">${source.title}</a>`
                     ).join(', ')}</small>
                 </div>
             `;
         }
-
         contentDiv.innerHTML = `
             <p>${message}</p>
             ${sourcesHtml}
             <div class="message-time">${this.getCurrentTime()}</div>
         `;
-
         messageDiv.appendChild(avatarDiv);
         messageDiv.appendChild(contentDiv);
         chatMessages.appendChild(messageDiv);
-
-        // Scroll to bottom
+        // Ensure chat-messages is scrollable and scroll to bottom
+        chatMessages.style.maxHeight = '350px';
+        chatMessages.style.overflowY = 'auto';
         chatMessages.scrollTop = chatMessages.scrollHeight;
-
         // Add typing animation for bot messages
         if (sender === 'bot') {
             this.animateTyping(contentDiv.querySelector('p'));

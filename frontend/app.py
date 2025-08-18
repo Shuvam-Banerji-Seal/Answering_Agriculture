@@ -70,7 +70,7 @@ def get_sub_query_generator():
 class QueryRequest(BaseModel):
     query: str
     input_type: str = "text"
-    language: str = "hi"
+    language: str = "en"  # Default language changed to English
     user_location: Optional[str] = None
     session_id: Optional[str] = None
 
@@ -91,10 +91,13 @@ class QueryResponse(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Serve the main application page"""
+    # Get language from query params, default to English
+    lang = request.query_params.get("lang", "en")
     return templates.TemplateResponse("index.html", {
         "request": request,
         "app_name": "IndicAgri",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "lang": lang
     })
 
 @app.get("/health")
@@ -115,30 +118,27 @@ async def process_query(query_request: QueryRequest):
     Process agricultural query using your existing backend modules
     """
     start_time = datetime.now()
-    
     try:
         logger.info(f"Processing query: {query_request.query[:100]}...")
-        
+        # Use language from request
+        language = query_request.language or "en"
         # Try to use your actual backend systems
         if get_sub_query_generator() and get_embedding_system():
             result = await process_with_backend(query_request)
         else:
             # Fallback to enhanced mock responses
             result = await get_enhanced_mock_response(query_request)
-        
         # Calculate processing time
         processing_time = (datetime.now() - start_time).total_seconds()
         result.processing_time = processing_time
-        
         logger.info(f"Query processed in {processing_time:.2f}s")
         return result
-        
     except Exception as e:
         logger.error(f"Error processing query: {str(e)}")
         logger.error(traceback.format_exc())
-        
+        # Error message in English
         return QueryResponse(
-            answer="क्षमा करें, तकनीकी समस्या के कारण आपका प्रश्न संसाधित नहीं हो सका। कृपया दोबारा कोशिश करें।",
+            answer="Sorry, your query could not be processed due to a technical issue. Please try again.",
             sources=[],
             confidence=0.0,
             processing_time=(datetime.now() - start_time).total_seconds(),
