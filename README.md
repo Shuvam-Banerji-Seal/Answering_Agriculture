@@ -69,17 +69,10 @@ ollama pull gemma3:1b
 
 ### 🔑 Critical Step Before Starting
 
-**Always run this command before starting the bot:**
+**Always run this command before starting the bot in case `Ollama` doesn't get downloaded**
 
 ```bash
-ollama run gemma3:1b
-```
-
-**Expected output:**
-```
->>> Hello, test the model
-I'd be happy to help with agriculture...
->>> /bye
+ollama pull gemma3:1b
 ```
 
 ### 🌐 Enhanced Language Support
@@ -90,7 +83,7 @@ For **better multilingual support** and improved performance:
 ollama run gemma3:27b  # Instead of gemma3:1b
 ```
 
-**Note**: Requires additional 16GB+ RAM for optimal performance.
+**Note**: Requires additional 30GB+ RAM for optimal performance.
 
 ***
 
