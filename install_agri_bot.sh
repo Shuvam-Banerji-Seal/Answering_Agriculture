@@ -30,7 +30,9 @@ log_error() {
 }
 
 # Configuration
-PROJECT_ROOT="/home/shuvam/codes/Answering_Agriculture"
+# Get the directory where this script is located (works regardless of where it's run from)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
 VENV_NAME="agri_bot_env"
 VENV_PATH="$PROJECT_ROOT/$VENV_NAME"
 AGRI_BOT_PATH="$PROJECT_ROOT/agri_bot_searcher"
@@ -243,14 +245,16 @@ EOF
 create_startup_script() {
     log_info "Creating startup script..."
     
-    cat > "$PROJECT_ROOT/start_agri_bot.sh" << 'EOF'
+    cat > "$PROJECT_ROOT/start_agri_bot.sh" << EOF
 #!/bin/bash
 
 # Agriculture Bot Searcher Startup Script
 
-PROJECT_ROOT="/home/shuvam/codes/Answering_Agriculture"
-VENV_PATH="$PROJECT_ROOT/agri_bot_env"
-AGRI_BOT_PATH="$PROJECT_ROOT/agri_bot_searcher"
+# Get the directory where this script is located (works regardless of where it's run from)
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="\$SCRIPT_DIR"
+VENV_PATH="\$PROJECT_ROOT/agri_bot_env"
+AGRI_BOT_PATH="\$PROJECT_ROOT/agri_bot_searcher"
 
 # Color codes
 GREEN='\033[0;32m'

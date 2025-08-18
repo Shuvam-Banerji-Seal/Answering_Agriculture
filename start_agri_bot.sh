@@ -2,7 +2,9 @@
 
 # Agriculture Bot Searcher Startup Script
 
-PROJECT_ROOT="/home/shuvam/codes/Answering_Agriculture"
+# Get the directory where this script is located (works regardless of where it's run from)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
 VENV_PATH="$PROJECT_ROOT/agri_bot_env"
 AGRI_BOT_PATH="$PROJECT_ROOT/agri_bot_searcher"
 
