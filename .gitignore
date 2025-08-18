@@ -1,32 +1,96 @@
-# log and data files
-*.model
-*.pkl
-#*.ipynb
-output
-result
-*.pt
-tests/data/asr
-.DS_Store
-bert.pt.json
-work
-runs
-fastspeech_output
-.hydra
-.bash_history.local
+# Agriculture Bot Searcher - Comprehensive .gitignore
+# =======================================================
+# This .gitignore file is designed to prevent large files and unnecessary
+# directories from being uploaded to the git repository
 
+# ====================
+# Large Data Files (>100MB) - CRITICAL
+# ====================
+# Avoid uploading large datasets and model files to git
+*.jsonl
+*.json.gz
+*.tar.xz
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Large dataset files (specific to this project)
+autonomous_indian_agriculture_complete*.jsonl
+autonomous_indian_agriculture_complete*.zip
+agri_bot_searcher.zip
+
+# BM25 index files (very large - 24GB total)
+bm25_line/agriculture_bm25_index/
+bm25_line/agriculture_bm25_index.tar.xz
+bm25_line/*.pkl
+bm25_line/*.json
+
+# ====================
+# AI/ML Models and Weights - CRITICAL
+# ====================
+# Model files and checkpoints
+*.model
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.nemo
+*.safetensors
+*.h5
+*.hdf5
+models/
+checkpoints/
+pretrained/
+weights/
+
+# HuggingFace cache and downloaded models
+.cache/huggingface/
+.cache/torch/
+transformers_cache/
+~/.cache/huggingface/
+
+# ====================
+# Audio and Media Files
+# ====================
+# Audio files (can be large)
+*.wav
+*.mp3
+*.mp4
+*.avi
+*.mkv
+*.flac
+*.ogg
+*.m4a
+*.aac
+
+# Allow small test audio files (uncomment if needed)
+# !test_samples/*.wav
+# !audio_stuff/test*.wav
+
+# ====================
+# Python Environment and Cache
+# ====================
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-**.pyc
+*.pyc
+*.pyo
+*.pyd
 
-# C extensions
-*.so
+# Virtual environments - CRITICAL (can be 100MB+)
+.env
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
 
-# Distribution / packaging
-.idea
+# Python distribution / packaging
 .Python
-wandb
 build/
 develop-eggs/
 dist/
@@ -35,7 +99,7 @@ eggs/
 .eggs/
 lib/
 lib64/
-#parts/
+parts/
 sdist/
 var/
 wheels/
@@ -46,145 +110,322 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# ====================
+# Jupyter and IPython
+# ====================
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+*.ipynb linguist-generated
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# ====================
+# Logs and Temporary Files
+# ====================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.bak
+*.backup
+*.old
+*.orig
 
-# Unit test / coverage reports
-htmlcov/
+# Application specific logs
+logs/
+*.out
+*.err
+dump.py
+
+# ====================
+# Development Tools and IDEs
+# ====================
+# IDE settings
+.idea/
+.vscode/
+.spyderproject/
+.spyproject/
+.ropeproject/
+
+# Testing and coverage
+.coverage
+.pytest_cache/
 .tox/
 .nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
+htmlcov/
+.hypothesis/
 coverage.xml
 *.cover
-.hypothesis/
-.pytest_cache/
+.cache
+nosetests.xml
 
-# Translations
-*.mo
-*.pot
+# ====================
+# External Libraries and Submodules - CRITICAL
+# ====================
+# Large external repositories (like NeMo - 248MB)
+audio_stuff/NeMo/
+NeMo/
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
+# ====================
+# Database and Cache Files
+# ====================
+*.sqlite3
+*.db
+*.sqlite
+.cache/
+cache/
 
-# Flask stuff:
+# ====================
+# Configuration with Secrets
+# ====================
+# Environment files with API keys and secrets
+.env
+.env.local
+.env.production
+.env.development
+config/secrets.yml
+secrets.json
+
+# Allow example/template files
+!.env.example
+!.env.template
+
+# API keys and tokens (be extra careful)
+*api_key*
+*secret_key*
+*access_token*
+
+# ====================
+# Web Framework Specific
+# ====================
+# Flask
 instance/
 .webassets-cache
 
-# Scrapy stuff:
-.scrapy
+# Django
+local_settings.py
+db.sqlite3
 
-# Sphinx documentation
-docs/build
+# ====================
+# Package Managers
+# ====================
+# Node.js (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# PyBuilder
-target/
+# ====================
+# Documentation Build
+# ====================
+docs/build/
+docs/_build/
+docs/html/
+docs/docs_zh/zh/
+site/
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# ====================
+# ML Experiment Tracking and Hydra
+# ====================
+.hydra/
+outputs/
+multirun/
+wandb/
+mlruns/
+nemo_experiments/
+NeMo_experiments/
 
-# Override Jupyter in Github Language states for more accurate estimate of repo code.
-# Reference: https://github.com/github/linguist/blob/master/docs/overrides.md#generated-code
-*.ipynb linguist-generated
+# Specific to this project
+work/
+runs/
+fastspeech_output/
+result/
+tests/data/asr/
+tests/.data/
+tests/data/
+examples/*/outputs/
+examples/*/nemo_experiments/
+examples/*/.hydra/
+examples/*/wandb/
+examples/*/data/
 
-# IPython
-profile_default/
-ipython_config.py
+# ====================
+# System Files
+# ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.bash_history.local
 
-# pyenv
-.python-version
+# ====================
+# Images and Media (can be large)
+# ====================
+# Large image files (>1MB)
+# Note: Small essential images like diagrams can be committed
+# !System_arch.png  # Allow architecture diagram
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don’t work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+# Uncomment these lines to exclude all images:
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+# *.bmp
+# *.tiff
 
-# celery beat schedule file
-celerybeat-schedule
+# Allow small icons and essential images (uncomment as needed)
+# !icons/*.png
+# !assets/logos/*.png
+# !docs/images/small_*.png
 
-# SageMath parsed files
-*.sage.py
+# ====================
+# Archive and Compressed Files
+# ====================
+*.tar
+*.gz
+*.bz2
+*.xz
+*.Z
+*.lz
+*.lzma
+*.tlz
+*.txz
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# ====================
+# Custom Project Specific
+# ====================
+# Project specific large files
+organized_database_creation.zip
 
-# VSCode project settins
-.vscode/
+# Voice transcription related
+voice_models/
+audio_cache/
+transcription_cache/
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Ollama related
+ollama_data/
+.ollama/
 
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-/docs/html
-/docs/docs_zh/zh
-
-# mypy
+# ====================
+# Python Type Checking and Linting
+# ====================
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
 
-# Emacs backup files
-*~
+# ====================
+# Streamlit
+# ====================
+.streamlit/
 
-cifar-10-batches-py
-*.tar.gz
+# ====================
+# Conda Environment
+# ====================
+.conda/
+conda-meta/
 
-# Test data.
-tests/.data
-tests/data
+# ====================
+# Docker
+# ====================
+.dockerignore
+docker-compose.override.yml
 
-# outputs folder
-examples/*/outputs
-examples/*/NeMo_experiments
-examples/*/nemo_experiments
-examples/*/.hydra
-examples/*/wandb
-examples/*/data
-wandb
-dump.py
+# ====================
+# Git LFS (if using)
+# ====================
+# Large files should use Git LFS instead of regular git
+# Uncomment if you set up Git LFS for large files
+# *.jsonl filter=lfs diff=lfs merge=lfs -text
+# *.nemo filter=lfs diff=lfs merge=lfs -text
 
+# ====================
+# Installer and Package Files
+# ====================
+*.msi
+*.msm
+*.msp
+*.cab
+*.deb
+*.rpm
+
+# ====================
+# PyInstaller
+# ====================
+*.manifest
+*.spec
+
+# ====================
+# Unit Test and Coverage
+# ====================
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ====================
+# Internationalization
+# ====================
+*.mo
+*.pot
+
+# ====================
+# Scrapy
+# ====================
+.scrapy
+
+# ====================
+# Sphinx Documentation
+# ====================
 docs/sources/source/test_build/
 
-# Checkpoints, config files and temporary files created in tutorials.
+# ====================
+# PyBuilder
+# ====================
+target/
+
+# ====================
+# Jupyter Override for GitHub Language Detection
+# ====================
+*.ipynb linguist-generated
+
+# ====================
+# Celery
+# ====================
+celerybeat-schedule
+
+# ====================
+# SageMath
+# ====================
+*.sage.py
+
+# ====================
+# mkdocs
+# ====================
+/site
+
+# ====================
+# Emacs
+# ====================
+*~
+
+# ====================
+# Project Specific Neural Network Files
+# ====================
+bert.pt.json
+cifar-10-batches-py
 examples/neural_graphs/*.chkpt
 examples/neural_graphs/*.yml
 
-.hydra/
-nemo_experiments/
+# ====================
+# C Extensions
+# ====================
+*.so
 
-# Custom ignores
-organized_database_creation.zip
-*.zip
-*.jsonl
-NeMo/
-autonomous_indian_agriculture_complete.jsonl
-
-bm25_line/agriculture_bm25_index.tar.xz
-bm25_line/agriculture_bm25_index
+# ====================
+# End of .gitignore
+# ====================
