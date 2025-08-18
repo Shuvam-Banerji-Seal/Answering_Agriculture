@@ -107,8 +107,8 @@ if st.session_state.messages[-1]['role'] != "assistant":
     with st.chat_message('assistant'):
         with st.spinner('Thinking 🤔.....'):
             retrival= subprocess.check_output(["python", "../agri_bot_searcher/src/agriculture_chatbot.py"], text=True)
-            final_response=generate(st.session_state.messages)
-            final_response=inference(model=llm,query=transcript,device=device,tokenizer=tokenizer,retrive=retrival)
+            final=generate(st.session_state.messages)
+            final_response=inference(model=llm,query=final,device=device,tokenizer=tokenizer,retrive=retrival)
             print(f'final response me ye mila hai ----------------------->{final_response}')
         st.write(final_response)
         st.session_state.messages.append({
