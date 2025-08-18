@@ -15,7 +15,114 @@ The system features **specialized agricultural agents** including crop specialis
 
 The platform features **robust production-ready infrastructure** with automated installation scripts, virtual environment management, comprehensive error handling, and modular architecture supporting both detailed analytical responses and concise practical advice modes. Real-time citation generation with inline source attribution ensures information credibility. **IndicAgri** represents a significant advancement in accessible agricultural technology, providing a scalable foundation for bridging the digital divide for Indian farmers while maintaining scientific rigor through its advanced retrieval-augmented generation pipeline.
 
----
+## 🚀 Quick Start Installation
+
+### 📋 Prerequisites
+
+- **OS**: Ubuntu 20.04+ / Linux with Docker support
+- **RAM**: 8GB+ (minimum for local LLM)
+- **Storage**: 10GB free space
+- **Network**: Stable internet connection
+
+### ⚡ Standard Installation
+
+```bash
+# Install system dependencies
+sudo apt update && sudo apt install -y python3 python3-pip python3-venv git curl
+
+# Clone repository
+git clone https://github.com/Shuvam-Banerji-Seal/Answering_Agriculture.git
+cd Answering_Agriculture
+
+# Run automated installation
+./install_agri_bot.sh
+
+# Start the agriculture bot
+./start_agri_bot.sh
+```
+
+### 🔧 Alternative Installation (If HTTP 404 errors occur)
+
+```bash
+# Install system dependencies
+sudo apt update && sudo apt install -y python3 python3-pip python3-venv git curl
+
+# Clone repository
+git clone https://github.com/Shuvam-Banerji-Seal/Answering_Agriculture.git
+cd Answering_Agriculture
+
+# Pre-download model to avoid installation issues
+ollama pull gemma3:1b 
+
+# Run installation and start
+./install_agri_bot.sh
+./start_agri_bot.sh
+```
+
+### 🎯 Access the System
+
+**Web Interface**: [http://localhost:5000](http://localhost:5000) *(Ctrl+click to open)*
+
+***
+
+## ⚠️ Important Setup Notes
+
+### 🔑 Critical Step Before Starting
+
+**Always run this command before starting the bot:**
+
+```bash
+ollama run gemma3:1b
+```
+
+**Expected output:**
+```
+>>> Hello, test the model
+I'd be happy to help with agriculture...
+>>> /bye
+```
+
+### 🌐 Enhanced Language Support
+
+For **better multilingual support** and improved performance:
+
+```bash
+ollama run gemma3:27b  # Instead of gemma3:1b
+```
+
+**Note**: Requires additional 16GB+ RAM for optimal performance.
+
+***
+
+## 🔧 Troubleshooting
+
+### **Port 5000 Already in Use**
+```bash
+docker ps
+docker stop agri-bot-searcher
+./start_agri_bot.sh
+```
+
+### **Model Not Found Error**
+```bash
+ollama list                # Check installed models
+ollama pull gemma3:1b     # Download if missing
+```
+
+### **Manual Startup (If Automated Script Fails)**
+```bash
+source agri_bot_env/bin/activate
+cd agri_bot_searcher
+python src/web_ui.py
+```
+
+### **Docker Setup Issues**
+
+For detailed Docker installation and troubleshooting:
+
+- **Linux Mint**: [🎥 Docker Setup Tutorial](https://youtu.be/h0L_zUA_kP4?si=8xV7bQdUsVoTUB-W)
+- **Ubuntu**: [🎥 Docker Setup Tutorial](https://youtu.be/cqbh-RneBlk?si=EkFqE4xU3jGbOdXq)
+
 
 ## 🌟 Overview
 
@@ -137,6 +244,17 @@ The dataset creation process is managed through our comprehensive **[Database Ge
 - **Multi-Language Support**: 12 Indian languages with auto-detection
 - **Technical Terminology**: Extensive agricultural vocabulary recognition
 - **Regional Dialects**: Support for regional variations in language
+
+
+## 🎯 Test Queries
+
+### Try these sample queries to test the system:
+
+- "What crops are best for northeastern India?"
+- "Rice crop yellow leaves treatment"
+- "Maharashtra wheat market prices"
+- "Government agriculture schemes 2025"
+- "Monsoon season farming recommendations"
 
 ***
 
