@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi" dir="ltr">
+<html lang="{{ lang }}" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,7 +18,7 @@
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <title>IndicAgri - स्मार्ट कृषि सहायक</title>
+    <title>IndicAgri - Smart Agriculture Assistant</title>
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="/static/css/responsive.css">
 </head>
@@ -32,19 +32,19 @@
                         <i class="fas fa-seedling"></i>
                         <span class="logo-text">IndicAgri</span>
                     </div>
-                    <span class="tagline">स्मार्ट कृषि सहायक</span>
+                    <span class="tagline">Smart Agriculture Assistant</span>
                 </div>
                 
                 <div class="header-actions">
                     <div class="language-selector">
                         <button class="language-btn" aria-label="Select Language">
                             <i class="fas fa-globe"></i>
-                            <span>हिंदी</span>
+                            <span>English</span>
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <div class="language-dropdown">
-                            <div class="language-option active" data-lang="hi">हिंदी</div>
                             <div class="language-option" data-lang="en">English</div>
+                            <div class="language-option" data-lang="hi">हिंदी</div>
                             <div class="language-option" data-lang="bn">বাংলা</div>
                             <div class="language-option" data-lang="te">తెలుగు</div>
                             <div class="language-option" data-lang="mr">मराठी</div>
@@ -219,7 +219,7 @@
                         </button>
                     </div>
                     
-                    <div class="chat-messages" id="chatMessages">
+                    <div class="chat-messages" id="chatMessages" style="max-height:350px;overflow-y:auto;">
                         <div class="message bot-message">
                             <div class="message-avatar">
                                 <i class="fas fa-robot"></i>
