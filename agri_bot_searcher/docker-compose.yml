@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   agri-bot-searcher:
     build: .
@@ -9,7 +7,7 @@ services:
       - "5000:5000"  # Web UI
       - "8000:8000"  # Alternative port
     environment:
-      - OLLAMA_HOST=host.docker.internal:11434
+      - OLLAMA_HOST=ollama-server:11434
       - PYTHONPATH=/app/src
       - HOST=0.0.0.0
       - PORT=5000
@@ -28,9 +26,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      sh -c "echo 'Agriculture Bot Searcher is ready!' &&
-             echo 'Use: docker exec -it agri-bot-searcher python src/agriculture_chatbot.py --help' &&
-             tail -f /dev/null"
 
   # Ollama service (optional - if you want to run Ollama in Docker too)
   ollama:

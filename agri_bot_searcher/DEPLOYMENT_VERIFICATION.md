@@ -78,7 +78,7 @@ python src/agriculture_chatbot.py --query "your question here"
 ```bash
 cd agri_bot_searcher
 docker-compose up -d
-docker exec -it agriculture-bot python src/agriculture_chatbot.py --query "your question here"
+docker exec -it agri-bot-searcher python src/agriculture_chatbot.py --query "your question here"
 ```
 
 ### Option 3: Web API
