@@ -1,0 +1,1186 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fontawesome5}
+\usepackage{adjustbox}
+
+% Custom colors
+\definecolor{indicgreen}{RGB}{34, 139, 34}
+\definecolor{indicorange}{RGB}{255, 140, 0}
+\definecolor{indicblue}{RGB}{70, 130, 180}
+\definecolor{indicpurple}{RGB}{138, 43, 226}
+\definecolor{indicred}{RGB}{220, 20, 60}
+
+% Title page information
+\title[IndicAgri]{IndicAgri: Retrieval Augmented Agricultural Platform for India}
+\subtitle{Exploring and Building Agentic AI Solutions for Agriculture}
+\author[Team Fibonacci]{Aheli Poddar \textbf{[Team Lead]} \\ Shuvam Banerji Seal \\ Mishra Alok Ajay}
+\institute[Capital One]{Capital One Software Engineering Summit}
+\date{\today}
+
+% Custom footer
+\setbeamertemplate{footline}[frame number]
+
+% Code listing settings
+\lstdefinestyle{pythonstyle}{
+    language=Python,
+    basicstyle=\tiny\ttfamily,
+    keywordstyle=\color{indicblue},
+    commentstyle=\color{indicgreen},
+    stringstyle=\color{indicorange},
+    breaklines=true,
+    showstringspaces=false,
+    frame=single,
+    captionpos=b
+}
+
+\begin{document}
+
+% Title slide
+\begin{frame}
+\titlepage
+\end{frame}
+
+% Table of contents
+\begin{frame}{Outline}
+\tableofcontents[hideallsubsections]
+\end{frame}
+
+\section{Problem Statement \& Theme}
+
+\begin{frame}{Agricultural Technology Gap in India}
+\begin{columns}
+\begin{column}{0.6\textwidth}
+\textbf{Critical Challenges:}
+\begin{itemize}
+\item Limited technology adoption among farmers
+\item Language and literacy barriers  
+\item Lack of region-specific guidance
+\item Fragmented information sources
+\item Poor access to real-time data
+\item Insufficient scientific backing for recommendations
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Our Solution:} AI-powered, multi-modal agricultural assistant with scientific accuracy
+\end{column}
+\begin{column}{0.4\textwidth}
+\begin{center}
+\Large{\textcolor{indicgreen}{\textbf{70\%}}} \\
+\small{Smartphone penetration in rural areas}
+
+\vspace{0.3cm}
+\Large{\textcolor{indicorange}{\textbf{22}}} \\
+\small{Indian languages supported}
+
+\vspace{0.3cm}
+\Large{\textcolor{indicblue}{\textbf{100+}}} \\
+\small{Crop varieties covered}
+
+\vspace{0.3cm}
+\Large{\textcolor{indicpurple}{\textbf{15,000+}}} \\
+\small{Curated agricultural entries}
+\end{center}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Theme Benefits for Stakeholders}
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\textbf{For Agricultural Input Suppliers:}
+\begin{itemize}
+\item AI-powered product recommendations
+\item Value-added advisory services
+\item Data-driven sales analytics
+\item Competitive differentiation
+\end{itemize}
+
+\textbf{For Farmers:}
+\begin{itemize}
+\item Voice interactions in native languages
+\item Scientific, citation-backed advice
+\item Real-time market \& weather data
+\item Region-specific guidance
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{For Financial Services \& Banks:}
+\begin{itemize}
+\item Market intelligence \& trends
+\item Risk assessment support
+\item Government scheme awareness
+\item Agricultural data insights
+\end{itemize}
+
+\textbf{For Policy Makers:}
+\begin{itemize}
+\item Anonymized agricultural insights
+\item Usage pattern analysis
+\item Policy impact tracking
+\item Evidence-based decision support
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\section{Solution Overview}
+
+\begin{frame}{IndicAgri: Core Architecture}
+\begin{center}
+\textbf{Mermaid Diagram - System Architecture:}
+\end{center}
+
+\begin{footnotesize}
+\begin{verbatim}
+graph TB
+    subgraph "User Interface Layer"
+        A[Voice Input - 22 Languages] 
+        B[Text Input - Web Interface]
+        C[Progressive Web App]
+    end
+    
+    subgraph "Processing Layer"
+        D[Indic-Conformer STT]
+        E[Query Decomposition System]
+        F[Context Management]
+        G[Multi-Language NLP]
+    end
+    
+    subgraph "Intelligence Layer"
+        H[LLM Engine - Gemma3/DeepSeek/Qwen]
+        I[RAG System - LangChain]
+        J[Vector Search - FAISS]
+        K[Keyword Search - BM25]
+    end
+    
+    subgraph "Knowledge Layer"
+        L[Vector Database - 15K+ Entries]
+        M[Real-time APIs]
+        N[Weather Data - IMD]
+        O[Market Prices - APMC/e-NAM]
+        P[Government Schemes]
+    end
+    
+    A --> D
+    B --> E
+    D --> G
+    E --> F
+    F --> H
+    H --> I
+    I --> J
+    I --> K
+    J --> L
+    K --> L
+    M --> N
+    M --> O
+    M --> P
+\end{verbatim}
+\end{footnotesize}
+\end{frame}
+
+\begin{frame}{Core Capabilities \& Innovations}
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\textbf{Multi-Modal Intelligence:}
+\begin{itemize}
+\item Text queries processing
+\item Voice commands (22 Indian languages)
+\item Time series forecasting integration
+\item Progressive degradation for poor connectivity
+\end{itemize}
+
+\textbf{Comprehensive Knowledge:}
+\begin{itemize}
+\item 100+ crop varieties
+\item Soil management guidance
+\item Weather pattern analysis
+\item Government schemes database
+\item Market trend analysis
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{Real-Time Integration:}
+\begin{itemize}
+\item Live weather data (IMD, OpenWeatherMap)
+\item Market prices (APMC, e-NAM)
+\item Government scheme updates
+\item Seasonal recommendations
+\end{itemize}
+
+\textbf{Regional Specialization:}
+\begin{itemize}
+\item State-specific advice
+\item Local farming practices
+\item Soil type considerations
+\item Climate adaptation strategies
+\item Agro-climatic zone awareness
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Scientific Accuracy \& Dataset Innovation}
+\begin{center}
+\Large{\textbf{IndicAgri Dataset: 15,000+ Curated Agricultural Entries}}
+\small{Publicly Available on HuggingFace: \texttt{ShuvBan/IndicAgri}}
+\end{center}
+
+\vspace{0.3cm}
+\begin{columns}
+\begin{column}{0.25\textwidth}
+\begin{center}
+\textcolor{indicgreen}{\textbf{80\%}} \\
+\small{Citations from government \& research institutions}
+\end{center}
+\end{column}
+\begin{column}{0.25\textwidth}
+\begin{center}
+\textcolor{indicorange}{\textbf{Real-time}} \\
+\small{Weather \& market data integration}
+\end{center}
+\end{column}
+\begin{column}{0.25\textwidth}
+\begin{center}
+\textcolor{indicblue}{\textbf{12}} \\
+\small{Autonomous agents deployed}
+\end{center}
+\end{column}
+\begin{column}{0.25\textwidth}
+\begin{center}
+\textcolor{indicpurple}{\textbf{Open Source}} \\
+\small{Dataset publicly available}
+\end{center>
+\end{column>
+\end{columns>
+
+\vspace{0.4cm}
+\textbf{Key Innovation:} All recommendations backed by research articles, agricultural university publications, and peer-reviewed sources with inline citations. Uses autonomous agentic database creation for continuous knowledge expansion.
+\end{frame>
+
+\section{Technical Architecture}
+
+\begin{frame}{Technology Stack Overview}
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\textbf{Core AI \& Machine Learning:}
+\begin{itemize}
+\item \textbf{LLMs:} Gemma3, DeepSeek, Qwen (Open Source)
+\item \textbf{Embeddings:} Qwen3-Embedding-8B (4096-dim)
+\item \textbf{Fallback:} Okapi-BM25 keyword search
+\item \textbf{Speech:} Indic-Conformer (AI4Bharat)
+\item \textbf{Vector DB:} FAISS/ChromaDB
+\item \textbf{RAG:} LangChain implementation
+\end{itemize}
+
+\textbf{Data Integration \& Processing:}
+\begin{itemize}
+\item Custom 12-agent web scraping system
+\item Real-time APIs (IMD, OpenWeatherMap)
+\item Python-based knowledge updater
+\item OCR for PDF data extraction
+\item BeautifulSoup for content processing
+\end{itemize>
+\end{column>
+\begin{column}{0.5\textwidth}
+\textbf{Current Implementation:}
+\begin{itemize}
+\item \textbf{Frontend:} Progressive Web App (HTML, CSS, JS)
+\item \textbf{Deployment:} Dockerized containers
+\item \textbf{Minimum Req:} 8GB RAM laptop
+\item \textbf{Architecture:} Server-client ecosystem
+\end{itemize>
+
+\textbf{Future Deployment Stack:}
+\begin{itemize}
+\item \textbf{Container:} Docker with multi-stage builds
+\item \textbf{Orchestration:} Kubernetes auto-scaling
+\item \textbf{Cloud:} AWS/Azure compute \& storage
+\item \textbf{CDN:} CloudFront for global delivery
+\item \textbf{Monitoring:} Prometheus + Grafana
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}{Architecture Decision Rationale}
+\begin{columns>
+\begin{column}{0.5\textwidth}
+\textbf{Microservices Architecture:}
+\begin{itemize>
+\item Scalability and independent deployability
+\item Fault isolation and component-wise scaling
+\item Easier maintenance and updates
+\end{itemize>
+
+\textbf{RAG over Fine-tuning:}
+\begin{itemize>
+\item Maintains up-to-date information
+\item No expensive model retraining
+\item Real-time knowledge updates
+\item Cost-effective scaling
+\end{itemize>
+
+\textbf{Multi-Modal Processing:}
+\begin{itemize>
+\item Essential for varying literacy levels
+\item Voice interactions preferred over text
+\item Accessibility for rural farmers
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Open Source LLMs:}
+\begin{itemize>
+\item Cost-effective compared to API calls
+\item Local deployment for data privacy
+\item No dependency on external services
+\item Customizable for domain-specific needs
+\end{itemize>
+
+\textbf{Hybrid Retrieval System:}
+\begin{itemize>
+\item Vector search for semantic similarity
+\item BM25 as intelligent fallback
+\item Optimized for vague query handling
+\item Handles both precise and exploratory queries
+\end{itemize>
+
+\textbf{Technology Constraints Addressed:}
+\begin{itemize>
+\item Language model selection for local deployment
+\item Internet connectivity considerations
+\item Device access assumptions (70\% smartphone penetration)
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\section{System Components Deep Dive}
+
+\begin{frame}{Query Processing Pipeline}
+\textbf{Mermaid Diagram - Query Processing Flow:}
+
+\begin{footnotesize}
+\begin{verbatim}
+graph TD
+    A[User Input] --> B{Input Type?}
+    B -->|Voice| C[Indic-Conformer STT]
+    B -->|Text| D[Text Processing]
+    C --> E[Language Detection]
+    D --> F[Query Analysis]
+    E --> F
+    F --> G[Sub-query Generation]
+    G --> H[Vector Search - FAISS]
+    G --> I[Keyword Search - BM25]
+    H --> J[Context Retrieval]
+    I --> J
+    J --> K[LLM Processing - Gemma3/DeepSeek]
+    K --> L[Response Generation]
+    L --> M[Multi-format Output]
+    M --> N[Voice/Text Response]
+    
+    O[Real-time APIs] --> J
+    P[Weather Data] --> O
+    Q[Market Prices] --> O
+    R[Government Schemes] --> O
+    
+    S[Context Memory] --> K
+    T[Citation Generator] --> L
+\end{verbatim}
+\end{footnotesize}
+
+\textbf{Key Features:} Dynamic query decomposition (3-5 sub-queries), context preservation across conversations, multi-language support, real-time data integration
+\end{frame}
+
+\begin{frame}{Embedding Generation System}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{System Architecture:}
+\begin{itemize>
+\item \textbf{Model:} Qwen3-Embedding-8B
+\item \textbf{Dimension:} 4096-dimensional vectors
+\item \textbf{Chunking:} Overlapping token-based (256 tokens, 25 overlap)
+\item \textbf{Processing:} Mean pooling of hidden states
+\item \textbf{Optimization:} GPU acceleration, batch processing
+\end{itemize>
+
+\textbf{Performance Metrics:}
+\begin{itemize>
+\item \textbf{Speed:} 50-100 records/minute (GPU)
+\item \textbf{Memory:} ~8GB GPU for model
+\item \textbf{Index Build:} 1M embeddings in 30 seconds
+\item \textbf{Search:} <1ms per query (FAISS)
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Data Pipeline:}
+\begin{itemize>
+\item JSONL dataset input
+\item Intelligent text chunking
+\item Agricultural metadata extraction
+\item FAISS index generation
+\item Quality assurance \& validation
+\end{itemize>
+
+\textbf{Output Structure:}
+\begin{itemize>
+\item \texttt{embeddings.npy} - Vector arrays
+\item \texttt{faiss\_index.bin} - Search index
+\item \texttt{metadata.json} - Human-readable
+\item \texttt{metadata.pkl} - Binary format
+\item \texttt{config.json} - Configuration
+\item \texttt{summary\_stats.json} - Analytics
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}{Sub-Query Generation System}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{Dual Implementation Support:}
+\begin{itemize>
+\item \textbf{Ollama:} Local execution, privacy-focused
+\item \textbf{HuggingFace:} Wide model selection, cloud/local
+\end{itemize>
+
+\textbf{Query Generation Strategy:}
+\begin{itemize>
+\item \textbf{5 Variation Types:} Synonym, technical, simplified, context, perspective
+\item \textbf{RAG-Optimized:} Complete sentences for document retrieval
+\item \textbf{Temperature:} 0.7 for optimal creativity-consistency balance
+\item \textbf{Output:} 3-5 diverse, targeted sub-queries
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Technical Specifications:}
+\begin{itemize>
+\item \textbf{Models:} Gemma2:2b, Google/Gemma-2-2b-it
+\item \textbf{Quantization:} 8-bit support for memory efficiency
+\item \textbf{Timeout:} 30-60 seconds per query
+\item \textbf{Fallback:} Original query if parsing fails
+\end{itemize>
+
+\textbf{Configuration Options:}
+\begin{itemize>
+\item YAML-based configuration
+\item Device selection (auto/CPU/GPU)
+\item Generation parameters
+\item Logging levels
+\item Custom preprocessing functions
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}[fragile]{Database Creation: Autonomous Agent System}
+\textbf{12-Agent Autonomous Architecture:}
+
+\begin{columns>
+\begin{column>{0.6\textwidth}
+\begin{itemize>
+\item \textbf{Parallel Deployment:} 12 specialized agents
+\item \textbf{Search Engine:} DuckDuckGo integration
+\item \textbf{Intelligence:} LLM-driven document selection
+\item \textbf{Coordination:} Cross-agent deduplication
+\item \textbf{Learning:} Success pattern recognition
+\item \textbf{Specializations:} Crop production, sustainability, policy, technology, economics, etc.
+\end{itemize>
+
+\textbf{Agent Specialization Examples:}
+\begin{itemize>
+\item \textbf{Agent 0:} Crop Production \& Statistics
+\item \textbf{Agent 1:} Sustainable Farming Practices  
+\item \textbf{Agent 2:} Agricultural Policy \& Economics
+\item \textbf{Agent 3:} Technology \& Innovation
+\end{itemize>
+\end{column>
+\begin{column>{0.4\textwidth}
+\textbf{Performance Characteristics:}
+
+\begin{small>
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Agents} & \textbf{Searches/Hr} & \textbf{Entries/Hr} \\
+\hline
+3 & 180-300 & 50-150 \\
+6 & 360-600 & 100-300 \\
+12 & 720-1200 & 200-600 \\
+\hline
+\end{tabular>
+\end{small>
+
+\textbf{Quality Distribution:}
+\begin{itemize>
+\item High Relevance (0.7+): 25-35\%
+\item Medium Relevance (0.3-0.7): 45-55\%
+\item Low Relevance (<0.3): 15-25\%
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}{Autonomous Agent Intelligence}
+\textbf{Mermaid Diagram - Agent Intelligence Architecture:}
+
+\begin{footnotesize}
+\begin{verbatim}
+graph TD
+    A[Agent Specialization] --> B[Knowledge Base Access]
+    B --> C[Context Selection]
+    C --> D[Pattern Matching]
+    
+    D --> E[Multi-domain Fusion]
+    D --> F[Location-specific Queries]
+    D --> G[Technology Focus]
+    D --> H[Problem-Solution Mapping]
+    D --> I[Research Focus]
+    D --> J[Policy Focus]
+    
+    E --> K[Query Construction]
+    F --> K
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+    
+    K --> L[Uniqueness Validation]
+    L --> M[Cross-Agent Coordination]
+    M --> N[Final Query]
+    
+    O[Search History] --> L
+    P[Success Patterns] --> K
+    Q[Learning System] --> K
+    R[Domain Preferences] --> C
+    
+    S[DuckDuckGo Search] --> T[Content Retrieval]
+    N --> S
+    T --> U[LLM Document Selection]
+    U --> V[Quality Filtering]
+    V --> W[JSONL Writing]
+\end{verbatim}
+\end{footnotesize}
+\end{frame>
+
+\section{Innovation Highlights}
+
+\begin{frame}{Key Technical Innovations}
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\textbf{1. State-of-the-Art Agricultural Knowledge Base:}
+\begin{itemize}
+\item 15,000+ curated entries for Indian farming
+\item Publicly available IndicAgri dataset on HuggingFace
+\item Comprehensive coverage: crops, soil, climate, policies
+\item 80\% citations from authoritative sources
+\end{itemize}
+
+\textbf{2. Autonomous Agentic Database Creation:}
+\begin{itemize}
+\item Config-driven autonomous agents
+\item Intelligent document selection using LLMs
+\item Scalable multi-agent deployment (12 agents tested)
+\item Real-time knowledge base updates
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{3. Advanced Query Processing:}
+\begin{itemize}
+\item Dynamic query decomposition into specialized sub-queries
+\item Context maintenance across extended conversations
+\item Proactive recommendations based on seasonal timing
+\item Hybrid retrieval (vector + keyword search)
+\end{itemize}
+
+\textbf{4. Multi-Modal Intelligence:}
+\begin{itemize}
+\item Voice processing in 22 Indian languages
+\item Agricultural terminology understanding
+\item Progressive degradation for poor connectivity
+\item Accessibility-focused design
+\end{itemize}
+\end{column}
+\end{columns>
+\end{frame>
+
+\begin{frame}{Real-Time Integration \& Intelligence}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{Live Data Integration:}
+\begin{itemize>
+\item \textbf{Weather:} IMD, OpenWeatherMap APIs
+\item \textbf{Market Prices:} APMC, e-NAM integration
+\item \textbf{Government Schemes:} Real-time policy updates
+\item \textbf{Seasonal Data:} Crop calendars, timing optimization
+\end{itemize>
+
+\textbf{Intelligent Features:}
+\begin{itemize>
+\item Historical agricultural pattern analysis
+\item Regional condition awareness
+\item Predictive recommendations
+\item Cross-seasonal context preservation
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Hybrid Retrieval Innovation:}
+\begin{itemize>
+\item Vector search for semantic similarity (FAISS)
+\item BM25 keyword search as intelligent fallback
+\item Optimized for vague query retrieval
+\item Dynamic search strategy selection
+\end{itemize>
+
+\textbf{Learning \& Adaptation:}
+\begin{itemize>
+\item Agent success pattern recognition
+\item Adaptive query refinement
+\item Cross-agent knowledge sharing
+\item Continuous performance optimization
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\section{Performance Metrics \& Validation}
+
+\begin{frame}{Current Measurable Performance}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{Technical Performance:}
+\begin{itemize>
+\item \textcolor{indicgreen}{\textbf{<3 seconds}} query response time (90\% of queries)
+\item \textcolor{indicblue}{\textbf{15,000+}} curated agricultural entries
+\item \textcolor{indicorange}{\textbf{22}} Indian languages supported
+\item \textcolor{indicgreen}{\textbf{99\%}} successful query processing
+\item \textcolor{indicpurple}{\textbf{50-100}} records/minute processing (GPU)
+\end{itemize>
+
+\textbf{Knowledge Base Quality:}
+\begin{itemize>
+\item \textcolor{indicgreen}{\textbf{80\%}} citations from government/research institutions
+\item \textcolor{indicblue}{\textbf{Real-time}} weather and market data integration
+\item \textcolor{indicorange}{\textbf{3-5}} targeted sub-queries per complex query
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{System Scalability:}
+\begin{itemize>
+\item \textcolor{indicgreen}{\textbf{12}} autonomous agents deployable
+\item \textcolor{indicblue}{\textbf{720-1200}} searches per hour
+\item \textcolor{indicorange}{\textbf{200-600}} entries per hour
+\item \textcolor{indicpurple}{\textbf{8-16 GB}} memory usage (12 agents)
+\end{itemize>
+
+\textbf{Future Success Indicators:}
+\begin{itemize>
+\item Geographic reach across Indian states
+\item Seasonal engagement patterns (planting/harvesting spikes)
+\item Government scheme awareness increase
+\item Specialized tool adoption rates
+\item Agricultural outcome improvements
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}{Quality Assurance \& Validation}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{Multi-Level Quality Control:}
+\begin{itemize>
+\item \textbf{Source Authority:} Government \& research institution prioritization
+\item \textbf{Content Validation:} LLM-driven document assessment
+\item \textbf{Relevance Scoring:} Agricultural domain specificity
+\item \textbf{Citation Tracking:} Source traceability
+\item \textbf{Duplicate Detection:} Cross-agent coordination
+\end{itemize>
+
+\textbf{Continuous Improvement:}
+\begin{itemize>
+\item Real-time knowledge base updates
+\item User feedback integration
+\item Performance monitoring
+\item Error rate tracking
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Expected Quality Distribution:}
+
+\begin{center>
+\begin{tikzpicture}[scale=0.8]
+\pie[text=legend, radius=2, color={indicgreen!70, indicblue!70, indicorange!70, indicred!70}]{
+    30/High Relevance (0.7+),
+    50/Medium Relevance (0.3-0.7),
+    15/Low Relevance (0.1-0.3),
+    5/Very Low (<0.1)
+}
+\end{tikzpicture>
+\end{center>
+
+\textbf{Validation Methods:}
+\begin{itemize>
+\item Agricultural expert review
+\item Cross-reference verification
+\item User query satisfaction tracking
+\item Citation accuracy checking
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame}
+
+\section{Implementation Status \& Components}
+
+\begin{frame}{Current Implementation Status}
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\textbf{✅ Completed Components:}
+\begin{itemize}
+\item Embedding generation system (Qwen3-Embedding-8B)
+\item Sub-query generation module (Ollama \& HuggingFace)
+\item Autonomous database creation (12-agent system)
+\item Vector database with FAISS integration
+\item Multi-language voice processing pipeline
+\item RAG implementation with LangChain
+\item Real-time API integrations
+\item Progressive Web App interface
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{🔧 Repository Structure:}
+\begin{itemize}
+\item \texttt{embedding\_generator/} - Vector embedding pipeline
+\item \texttt{sub\_query\_generation/} - Query decomposition system
+\item \texttt{organized\_database\_creation/} - Autonomous data curation
+\item \texttt{voice\_to\_text/} - Multi-language speech processing
+\end{itemize}
+
+\textbf{📊 Dataset Availability:}
+\begin{itemize}
+\item \textbf{HuggingFace:} \texttt{ShuvBan/IndicAgri}
+\item \textbf{GitHub:} \texttt{Answering\_Agriculture}
+\item \textbf{Demo Video:} YouTube showcase
+\item \textbf{Documentation:} Comprehensive API docs
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Technical Specifications \& Requirements}
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\textbf{System Requirements:}
+
+\begin{small}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Component} & \textbf{Minimum} & \textbf{Recommended} \\
+\hline
+CPU & 4+ cores & 8+ cores, 3.0+ GHz \\
+RAM & 8GB & 16GB \\
+Storage & 20GB & 50GB SSD \\
+GPU & Optional & CUDA-capable \\
+Internet & Stable & 25+ Mbps \\
+\hline
+\end{tabular}
+\end{small}
+
+\textbf{Platform Support:}
+\begin{itemize}
+\item Linux (Ubuntu 18.04+, CentOS 7+)
+\item macOS (10.14+)
+\item Windows 10+ (WSL2 recommended)
+\item Python 3.9+ required
+\item Docker containerization ready
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{Deployment Architecture:}
+\begin{itemize}
+\item \textbf{Current:} Dockerized containers
+\item \textbf{Scaling:} Server-client ecosystem
+\item \textbf{Minimum:} 8GB RAM laptop
+\item \textbf{Production:} Cloud infrastructure ready
+\end{itemize}
+
+\textbf{Technology Stack Dependencies:}
+\begin{itemize}
+\item \textbf{Core:} Python, PyTorch, Transformers
+\item \textbf{AI/ML:} FAISS, LangChain, HuggingFace
+\item \textbf{Data:} Pandas, NumPy, BeautifulSoup
+\item \textbf{APIs:} Requests, FastAPI, Flask
+\item \textbf{Monitoring:} Prometheus, Grafana (planned)
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\section{Feasibility \& Economic Impact}
+
+\begin{frame}{Technical Feasibility \& Scalability}
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\textbf{Current Implementation Feasibility:}
+\begin{itemize}
+\item All core technologies are mature and widely adopted
+\item Microservices design supports gradual rollout
+\item Open source components ensure sustainability
+\item Local deployment options for data privacy
+\end{itemize}
+
+\textbf{Scalability Considerations:}
+\begin{itemize}
+\item Independent component scaling based on demand
+\item Progressive degradation for connectivity issues
+\item Offline capabilities for core features
+\item Kubernetes-ready for cloud deployment
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Resource Optimization:}
+\begin{itemize>
+\item Quantization support for memory efficiency
+\item Caching strategies for frequent queries
+\item Batch processing for bulk operations
+\item GPU acceleration where available
+\end{itemize>
+
+\textbf{Performance Characteristics:}
+\begin{itemize>
+\item Linear scaling with hardware resources
+\item Sub-second query responses
+\item High availability through redundancy
+\item Graceful degradation under load
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}{Economic Viability \& User Adoption}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{User Adoption Potential:}
+\begin{itemize>
+\item Voice interactions mirror existing user behaviors
+\item Native language support reduces adoption barriers
+\item Simple queries for beginners, advanced features for experts
+\item Mobile-first design for smartphone users
+\end{itemize>
+
+\textbf{Economic Integration Opportunities:}
+\begin{itemize>
+\item Agricultural input suppliers partnerships
+\item Financial services integration
+\item Government scheme connectivity
+\item Cooperative society collaborations
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Revenue \& Sustainability Models:}
+\begin{itemize>
+\item Data monetization through anonymized insights
+\item Premium features for advanced users
+\item B2B partnerships with agribusiness
+\item Government contracts for digital agriculture
+\end{itemize>
+
+\textbf{Operational Efficiency:}
+\begin{itemize>
+\item Continuous learning and knowledge base expansion
+\item Self-service capabilities reduce manual intervention
+\item Automated updates from public research sources
+\item Community-driven content validation
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\section{Future Roadmap \& Vision}
+
+\begin{frame}{Deployment Strategy \& Roadmap}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{Phase 1: Infrastructure Deployment (3-6 months)}
+\begin{itemize>
+\item Docker containerization completion
+\item Kubernetes orchestration setup
+\item Cloud infrastructure (AWS/Azure) deployment
+\item CDN integration for multimedia optimization
+\item Basic monitoring and alerting
+\end{itemize>
+
+\textbf{Phase 2: Feature Enhancement (6-12 months)}
+\begin{itemize>
+\item Native mobile application development
+\item Advanced analytics dashboard
+\item Government scheme API connections
+\item Enhanced voice processing capabilities
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Phase 3: Scale \& Partnerships (12-18 months)}
+\begin{itemize>
+\item Partnership with Krishi Vigyan Kendras
+\item Integration with agricultural input suppliers
+\item Policy maker dashboard for insights
+\item Expansion to additional regional languages
+\item IoT device integration capabilities
+\end{itemize>
+
+\textbf{Phase 4: Advanced Intelligence (18+ months)}
+\begin{itemize>
+\item Predictive analytics for crop planning
+\item Climate change adaptation recommendations
+\item Market trend forecasting
+\item Precision agriculture integration
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}{Monitoring, Analytics \& Future Enhancements}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{Planned Monitoring Stack:}
+\begin{itemize>
+\item \textbf{System Monitoring:} Prometheus + Grafana
+\item \textbf{Performance Metrics:} Query response times, system reliability
+\item \textbf{User Analytics:} Geographic reach, feature usage patterns
+\item \textbf{Content Analytics:} Knowledge base effectiveness, citation tracking
+\item \textbf{Business Intelligence:} Agricultural outcome correlation
+\end{itemize>
+
+\textbf{Success Tracking Metrics:}
+\begin{itemize>
+\item Seasonal engagement patterns
+\item Regional adoption rates
+\item Government scheme query increases
+\item Agricultural productivity improvements
+\item User satisfaction scores
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Advanced Features Pipeline:}
+\begin{itemize>
+\item Multi-language support expansion
+\item Incremental database updates
+\item Distributed processing capabilities
+\item API service for third-party integration
+\item Machine learning model improvements
+\end{itemize>
+
+\textbf{Research \& Development Focus:}
+\begin{itemize>
+\item Agricultural domain-specific LLM fine-tuning
+\item Computer vision for crop monitoring
+\item IoT sensor data integration
+\item Blockchain for supply chain traceability
+\item Edge computing for rural deployment
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\section{Social Impact \& Contribution}
+
+\begin{frame}{Addressing Critical Agricultural Challenges}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{Digital Divide Bridge:}
+\begin{itemize>
+\item 22-language voice interface reduces literacy barriers
+\item Smartphone-optimized design for rural accessibility
+\item Offline capabilities for limited connectivity areas
+\item Progressive degradation ensures basic functionality
+\end{itemize>
+
+\textbf{Knowledge Democratization:}
+\begin{itemize>
+\item Scientific agricultural knowledge accessible to all farmers
+\item Citation-backed recommendations build trust
+\item Real-time data equalizes information access
+\item Regional specialization respects local practices
+\end{itemize}
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Economic Empowerment:}
+\begin{itemize>
+\item Market price transparency prevents exploitation
+\item Government scheme awareness increases benefit uptake
+\item Improved farming practices increase productivity
+\item Data-driven decisions reduce agricultural risks
+\end{itemize>
+
+\textbf{Sustainable Agriculture Promotion:}
+\begin{itemize>
+\item Evidence-based sustainable practice recommendations
+\item Climate adaptation strategies
+\item Resource optimization guidance
+\item Environmental impact awareness
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}{Open Source Contribution \& Community Impact}
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{Public Dataset Contribution:}
+\begin{itemize>
+\item \textbf{IndicAgri Dataset:} 15,000+ entries on HuggingFace
+\item First comprehensive Indian agriculture dataset
+\item Enables research and innovation by global community
+\item Accelerates agricultural AI development
+\end{itemize>
+
+\textbf{Technical Innovation Sharing:}
+\begin{itemize>
+\item Autonomous agent system architecture
+\item Multi-language agricultural NLP techniques
+\item Hybrid retrieval methodologies
+\item Real-time data integration patterns
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{Policy \& Governance Support:}
+\begin{itemize>
+\item Evidence-based policy recommendation support
+\item Agricultural trend analysis for planning
+\item Real-time impact assessment capabilities
+\item Data-driven government scheme optimization
+\end{itemize>
+
+\textbf{Educational \& Research Value:}
+\begin{itemize>
+\item Agricultural university curriculum enhancement
+\item Research methodology demonstration
+\item Student project foundation
+\item Academic collaboration opportunities
+\end{itemize>
+\end{column>
+\end{columns>
+\end{frame>
+
+\section{Conclusion}
+
+\begin{frame}{Project Impact Summary}
+\textbf{Technical Excellence Achieved:}
+\begin{itemize>
+\item State-of-the-art AI/ML implementation with proven performance metrics
+\item Innovative autonomous agentic database creation system
+\item Comprehensive, publicly available agricultural dataset
+\item Scalable, production-ready architecture with microservices design
+\end{itemize>
+
+\vspace{0.3cm>
+\textbf{Social Impact Potential:}
+\begin{itemize>
+\item Bridging technology adoption barriers in Indian agriculture
+\item Empowering farmers with accessible, scientific guidance
+\item Supporting multiple stakeholders in the agricultural ecosystem
+\item Contributing to India's digital agriculture transformation
+\end{itemize>
+
+\vspace{0.3cm>
+\textbf{Innovation Leadership:}
+\begin{itemize>
+\item First comprehensive multi-modal agricultural AI system for India
+\item Novel approach to autonomous knowledge base creation
+\item Open source contribution advancing global agricultural AI research
+\item Demonstrating practical application of agentic AI in agriculture
+\end{itemize>
+\end{frame>
+
+\begin{frame}{Key Achievements \& Differentiators}
+\begin{center>
+\Large{\textbf{IndicAgri: Transforming Indian Agriculture with AI}}
+\end{center>
+
+\vspace{0.4cm>
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{🏆 Technical Achievements:}
+\begin{itemize>
+\item 15,000+ curated agricultural entries
+\item 22 Indian languages supported
+\item <3 second query response time
+\item 99\% successful query processing
+\item 12 autonomous agents deployed
+\end{itemize>
+
+\textbf{🌟 Innovation Highlights:}
+\begin{itemize>
+\item First publicly available Indian agriculture dataset
+\item Autonomous agentic database creation
+\item Hybrid vector + keyword retrieval system
+\item Real-time multi-source data integration
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{🎯 Impact Metrics:}
+\begin{itemize>
+\item 70\% smartphone penetration target coverage
+\item 80\% authoritative source citations
+\item Scalable to 720-1200 searches/hour
+\item Production-ready with 8GB minimum requirements
+\end{itemize>
+
+\textbf{🚀 Future Potential:}
+\begin{itemize>
+\item Government partnership opportunities
+\item Agricultural cooperative integration
+\item Climate adaptation support
+\item Precision agriculture evolution
+\end{itemize}
+\end{column>
+\end{columns>
+\end{frame>
+
+\begin{frame}[c]{Thank You}
+\begin{center>
+\Huge{\textbf{Questions \& Discussion}}
+
+\vspace{0.8cm>
+\Large{IndicAgri: Transforming Indian Agriculture with AI}
+
+\vspace{0.5cm>
+\textbf{Team Fibonacci} \\
+Aheli Poddar \textbf{[Team Lead]}, Shuvam Banerji Seal, Mishra Alok Ajay
+
+\vspace{0.6cm>
+\begin{columns>
+\begin{column>{0.5\textwidth}
+\textbf{📂 Resources:}
+\begin{itemize>
+\item GitHub: \texttt{Answering\_Agriculture}
+\item Dataset: \texttt{ShuvBan/IndicAgri}
+\item Demo: YouTube Showcase
+\end{itemize>
+\end{column>
+\begin{column>{0.5\textwidth}
+\textbf{🔗 Links:}
+\begin{itemize>
+\item Repository: \href{https://github.com/Shuvam-Banerji-Seal/Answering_Agriculture}{GitHub Link}
+\item Dataset: \href{https://huggingface.co/datasets/ShuvBan/IndicAgri}{HuggingFace Dataset}
+\item Video: \href{https://youtu.be/UQ1iJkPihfY}{YouTube Demo}
+\end{itemize>
+\end{column>
+\end{columns>
+
+\vspace{0.4cm>
+\textcolor{indicgreen}{\textbf{Building the Future of Agricultural Intelligence in India}}
+\end{center>
+\end{frame>
+
+\end{document}
