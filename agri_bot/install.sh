@@ -2,7 +2,13 @@
 set -e  # stop on first error
 
 # Make sure you're already inside your virtual environment before running this script
+URL="https://objectstore.e2enetworks.net/indicconformer/models/indicconformer_stt_multi_hybrid_rnnt_600m.nemo"
 
+# Output filename
+OUTPUT="conformer.py"
+
+# Download using wget
+wget -O "$OUTPUT" "$URL"
 # Step 1: Install torch, torchvision, torchaudio (initial)
 pip install torch torchvision torchaudio
 
