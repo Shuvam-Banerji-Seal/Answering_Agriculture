@@ -108,7 +108,6 @@ install_base_dependencies() {
     # Always install critical dependencies first
     log_info "Installing critical core packages..."
     pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-<<<<<<< HEAD
     pip install ddgs>=0.2.0 requests>=2.28.0
     pip install flask>=2.0.0 flask-cors>=4.0.0 pyyaml>=6.0
     pip install beautifulsoup4>=4.9.3 lxml>=4.6.3 urllib3>=1.26.0
@@ -135,12 +134,6 @@ install_base_dependencies() {
         log_info "No GPU detected, installing FAISS-CPU"
         pip install faiss-cpu>=1.7.0
     fi
-=======
-    pip install duckduckgo-search>=6.0.0 requests>=2.28.0
-    pip install flask>=2.0.0 flask-cors>=4.0.0 pyyaml>=6.0
-    pip install beautifulsoup4>=4.9.3 lxml>=4.6.3 urllib3>=1.26.0
-    pip install html5lib>=1.1 dataclasses-json>=0.5.0 colorlog>=6.0.0
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
     
     # Install from requirements file if available
     if [ -f "$AGRI_BOT_PATH/requirements.txt" ]; then
@@ -150,25 +143,18 @@ install_base_dependencies() {
     
     # Install complete requirements if available
     if [ -f "$AGRI_BOT_PATH/requirements_complete.txt" ]; then
-<<<<<<< HEAD
                         log_info "Installing complete dependencies..."
-=======
-        log_info "Installing complete dependencies..."
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
         pip install -r "$AGRI_BOT_PATH/requirements_complete.txt" || {
             log_warning "Some packages from complete requirements failed, continuing..."
         }
     fi
     
-<<<<<<< HEAD
     # Install RAG-specific dependencies
     log_info "Installing Enhanced RAG dependencies..."
     pip install sentence-transformers>=2.2.0 faiss-cpu>=1.7.0 || {
         log_warning "Some RAG dependencies failed to install"
     }
     
-=======
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
     log_success "Base dependencies installed"
 }
 
@@ -230,7 +216,6 @@ install_ollama() {
         fi
     fi
     
-<<<<<<< HEAD
     # Pull gemma3:27b model for synthesis (optional but recommended)
     log_info "Downloading gemma3:27b model for answer synthesis (this may take 15-20 minutes)..."
     if ollama list 2>/dev/null | grep -q "gemma3:27b"; then
@@ -246,23 +231,17 @@ install_ollama() {
     fi
     
     # Verify models are available
-=======
-    # Verify model is available
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
     if ollama list 2>/dev/null | grep -q "gemma3:1b"; then
         log_success "gemma3:1b model is ready for use"
     else
         log_warning "gemma3:1b model verification failed"
     fi
-<<<<<<< HEAD
     
     if ollama list 2>/dev/null | grep -q "gemma3:27b"; then
         log_success "gemma3:27b model is ready for use"
     else
         log_info "gemma3:27b model not available - gemma3:1b will be used for synthesis"
     fi
-=======
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
 }
 
 # Install voice dependencies (NeMo, IndicTrans, etc.)
@@ -371,24 +350,15 @@ SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="\$SCRIPT_DIR"
 VENV_PATH="\$PROJECT_ROOT/agri_bot_env"
 AGRI_BOT_PATH="\$PROJECT_ROOT/agri_bot_searcher"
-<<<<<<< HEAD
 EMBEDDINGS_PATH="\$PROJECT_ROOT/agriculture_embeddings"
-=======
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
 
 # Color codes
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-<<<<<<< HEAD
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo -e "\033[0;34mStarting Agriculture Bot Searcher...\033[0m"
-=======
-NC='\033[0m'
-
-echo -e "${BLUE}Starting Agriculture Bot Searcher...${NC}"
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
 
 # Activate virtual environment
 source "$VENV_PATH/bin/activate"
@@ -408,7 +378,6 @@ fi
 # Navigate to agri_bot_searcher directory
 cd "$AGRI_BOT_PATH"
 
-<<<<<<< HEAD
 # Check if enhanced RAG system is available
 ENHANCED_AVAILABLE=false
 if [ -d "\$EMBEDDINGS_PATH" ] && [ -f "\$AGRI_BOT_PATH/src/enhanced_rag_system.py" ]; then
@@ -426,14 +395,6 @@ elif [ "\$ENHANCED_AVAILABLE" = "true" ]; then
 else
     echo -e "\${GREEN}Starting Agriculture Bot (Legacy Text Mode)\${NC}"
     echo -e "\${YELLOW}Note: Enhanced RAG mode not available. Missing embeddings database.\${NC}"
-=======
-# Check if voice is enabled
-if [ "$VOICE_ENABLED" = "true" ]; then
-    echo -e "${GREEN}Starting Agriculture Bot with Voice Support${NC}"
-    python3 src/voice_web_ui.py
-else
-    echo -e "${GREEN}Starting Agriculture Bot (Text Only)${NC}"
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
     python3 src/web_ui.py
 fi
 EOF
@@ -500,7 +461,6 @@ except ImportError as e:
                 else
                     log_warning "gemma3:1b model inference test failed"
                 fi
-<<<<<<< HEAD
                 
                 # Test gemma3:27b if available
                 if ollama list 2>/dev/null | grep -q "gemma3:27b"; then
@@ -511,8 +471,6 @@ except ImportError as e:
                         log_warning "gemma3:27b model inference test failed"
                     fi
                 fi
-=======
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
             else
                 log_warning "gemma3:1b model not found - attempting to download..."
                 if ollama pull gemma3:1b; then
@@ -581,7 +539,6 @@ main() {
     echo "===================="
     echo -e "Virtual Environment: ${VENV_PATH}"
     echo -e "Voice Support: $([ "$VOICE_ENABLED" = "true" ] && echo "✓ Enabled" || echo "✗ Disabled")"
-<<<<<<< HEAD
     echo -e "Ollama Models: $(command -v ollama &> /dev/null && {
         models_status=""
         if ollama list | grep -q "gemma3:1b"; then
@@ -604,9 +561,6 @@ main() {
         echo -e "Enhanced RAG Mode: ✗ Unavailable (embeddings database not found)"
         echo -e "  Note: Place your embeddings in $PROJECT_ROOT/agriculture_embeddings/"
     fi
-=======
-    echo -e "Ollama Model: $(command -v ollama &> /dev/null && ollama list | grep -q "gemma3:1b" && echo "✓ gemma3:1b ready" || echo "✗ Not available")"
->>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
     echo
     echo -e "${BLUE}To start the application:${NC}"
     echo "cd $PROJECT_ROOT"
