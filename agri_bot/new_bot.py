@@ -1,7 +1,7 @@
 
 from utility import speech_to_text_bharat, translate_indic ,mono_channel,speech_to_text
 import os
-from load import login_in ,ai_bharat ,load_indic_trans
+from load import ai_bharat ,load_indic_trans
 from huggingface_hub import login
 
 
