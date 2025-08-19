@@ -2,7 +2,8 @@
 
 this folder is used for translation and transcribing the voice to text for futher retrieval 
 
-languages supported by  free ai4bharat model with their languages code  
+languages supported by  free ai4bharat model with their languages code 
+
 Assamese (Bengali script)
 asm_Beng
 
