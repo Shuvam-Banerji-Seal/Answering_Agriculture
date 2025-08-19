@@ -2,6 +2,8 @@
 
 this folder is used for translation and transcribing the voice to text for futher retrieval 
 
+### plzz download this model and name it as conformer.py in same folder https://objectstore.e2enetworks.net/indicconformer/models/indicconformer_stt_multi_hybrid_rnnt_600m.nemo
+
 ### languages supported by  free ai4bharat model with their languages code 
 
 Assamese (Bengali script)
