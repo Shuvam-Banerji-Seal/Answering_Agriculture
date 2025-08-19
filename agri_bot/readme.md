@@ -2,6 +2,81 @@
 
 this folder is used for translation and transcribing the voice to text for futher retrieval 
 
+languages supported by  free ai4bharat model with their languages code  
+Assamese (Bengali script)
+asm_Beng
+
+Bengali
+ben_Beng
+
+Bodo
+brx_Deva
+
+Dogri
+doi_Deva
+
+Gujarati
+guj_Gujr
+
+Hindi
+hin_Deva
+
+Kannada
+kan_Knda
+
+Konkani
+gom_Deva
+
+Kashmiri (Arabic script)
+kas_Arab
+
+Kashmiri (Devanagari script)
+kas_Deva
+
+Maithili
+mai_Deva
+
+Malayalam
+mal_Mlym
+
+Manipuri (Bengali script)
+mni_Beng
+
+Manipuri (Meitei script)
+mni_Mtei
+
+Marathi
+mar_Deva
+
+Nepali
+npi_Deva
+
+Odia
+ory_Orya
+
+Punjabi
+pan_Guru
+
+Sanskrit
+san_Deva
+
+Santali (Ol Chiki script)
+sat_Olck
+
+Sindhi (Arabic script)
+snd_Arab
+
+Sindhi (Devanagari script)
+snd_Deva
+
+Urdu
+urd_Arab
+
+English (Latin script)
+eng_Latn
+
+
+python packages version we used 
 Core
 
 numpy==1.26.0
