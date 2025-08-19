@@ -2,7 +2,7 @@
 
 this folder is used for translation and transcribing the voice to text for futher retrieval 
 
-languages supported by  free ai4bharat model with their languages code 
+### languages supported by  free ai4bharat model with their languages code 
 
 Assamese (Bengali script)
 asm_Beng
@@ -77,8 +77,9 @@ English (Latin script)
 eng_Latn
 
 
-python packages version we used 
-Core
+# python packages version we used 
+
+## Core
 
 numpy==1.26.0
 
@@ -88,7 +89,7 @@ scipy==1.16.1
 
 matplotlib==3.10.5
 
-Machine Learning / AI
+## Machine Learning / AI
 
 torch==2.8.0
 
@@ -120,7 +121,7 @@ indictranstoolkit==1.1.1
 
 indic-nlp-library-itt==0.1.1
 
-Web / API
+### Web / API
 
 Flask==2.2.5
 
@@ -132,7 +133,7 @@ httpx==0.28.1
 
 requests==2.32.5
 
-Utilities
+### Utilities
 
 tqdm==4.67.1
 
