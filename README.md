@@ -24,12 +24,25 @@ The platform features **robust production-ready infrastructure** with automated 
 - **Storage**: 10GB free space
 - **Network**: Stable internet connection
 
+
 ### ⚡ Standard Installation
 
 ```bash
-# Install system dependencies
+# For Ubuntu / Debian
 sudo apt update && sudo apt install -y python3 python3-pip python3-venv git curl
 
+# For Fedora
+sudo dnf install -y python3 python3-pip python3-venv git curl
+
+# For CentOS / RHEL (with EPEL enabled)
+sudo yum install -y python3 python3-pip python3-venv git curl
+
+# For Arch Linux
+sudo pacman -Syu --noconfirm python python-pip git curl
+
+# If you are using any other GNU/Linux distribution, please update the package manager command accordingly.
+```
+```bash
 # Clone repository
 git clone https://github.com/Shuvam-Banerji-Seal/Answering_Agriculture.git
 cd Answering_Agriculture
@@ -42,16 +55,27 @@ cd Answering_Agriculture
 ```
 
 ### 🔧 Alternative Installation (If HTTP 404 errors occur)
-
 ```bash
-# Install system dependencies
+# For Ubuntu / Debian
 sudo apt update && sudo apt install -y python3 python3-pip python3-venv git curl
 
+# For Fedora
+sudo dnf install -y python3 python3-pip python3-venv git curl
+
+# For CentOS / RHEL (with EPEL enabled)
+sudo yum install -y python3 python3-pip python3-venv git curl
+
+# For Arch Linux
+sudo pacman -Syu --noconfirm python python-pip git curl
+
+# If you are using any other GNU/Linux distribution, please update the package manager command accordingly.
+```
+```bash
 # Clone repository
 git clone https://github.com/Shuvam-Banerji-Seal/Answering_Agriculture.git
 cd Answering_Agriculture
 
-# Pre-download model to avoid installation issues
+# Pre-download basic model to avoid installation issues
 ollama pull gemma3:1b 
 
 # Run installation and start
@@ -61,7 +85,7 @@ ollama pull gemma3:1b
 
 ### 🎯 Access the System
 
-**Web Interface**: [http://localhost:5000](http://localhost:5000) *(Ctrl+click to open)*
+**Web Interface**: [http://127.0.0.1:5000/](http://127.0.0.1:5000/) *(Ctrl+click to open)*
 
 ***
 
@@ -69,7 +93,7 @@ ollama pull gemma3:1b
 
 ### 🔑 Critical Step Before Starting
 
-**Always run this command before starting the bot in case `Ollama` doesn't get downloaded**
+**Run this command before starting the bot in case `Ollama` doesn't get downloaded**
 
 ```bash
 ollama pull gemma3:1b
