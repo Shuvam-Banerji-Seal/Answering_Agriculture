@@ -24,6 +24,7 @@ The platform features **robust production-ready infrastructure** with automated 
 - **Storage**: 10GB free space
 - **Network**: Stable internet connection
 
+<<<<<<< HEAD
 ### ⚡ Standard Installation
 
 ```bash
@@ -55,13 +56,67 @@ cd Answering_Agriculture
 ollama pull gemma3:1b 
 
 # Run installation and start
+=======
+
+
+### ⚡ Standard Installation
+
+```
+# For Ubuntu / Debian
+sudo apt update && sudo apt install -y python3 python3-pip python3-venv git curl
+
+# For Fedora
+sudo dnf install -y python3 python3-pip python3-venv git curl
+
+# For CentOS / RHEL (with EPEL enabled)
+sudo yum install -y python3 python3-pip python3-venv git curl
+
+# For Arch Linux
+sudo pacman -Syu --noconfirm python python-pip git curl
+
+# If you are using any other GNU/Linux distribution, please update the package manager command accordingly.
+```
+```
+git clone https://github.com/Shuvam-Banerji-Seal/Answering_Agriculture.git
+cd Answering_Agriculture
+./install_agri_bot.sh
+./start_agri_bot.sh
+```
+
+### ⚡ Alternative Installation (If HTTP 404 errors occur):
+
+```
+# For Ubuntu / Debian
+sudo apt update && sudo apt install -y python3 python3-pip python3-venv git curl
+
+# For Fedora
+sudo dnf install -y python3 python3-pip python3-venv git curl
+
+# For CentOS / RHEL (with EPEL enabled)
+sudo yum install -y python3 python3-pip python3-venv git curl
+
+# For Arch Linux
+sudo pacman -Syu --noconfirm python python-pip git curl
+
+# If you are using any other GNU/Linux distribution, please update the package manager command accordingly.
+```
+```
+git clone https://github.com/Shuvam-Banerji-Seal/Answering_Agriculture.git
+cd Answering_Agriculture
+# Pre-download basic model to avoid installation issues
+ollama pull gemma3:1b 
+>>>>>>> 34a68fb (fixed .sh fails)
 ./install_agri_bot.sh
 ./start_agri_bot.sh
 ```
 
 ### 🎯 Access the System
 
+<<<<<<< HEAD
 **Web Interface**: [http://localhost:5000](http://localhost:5000) *(Ctrl+click to open)*
+=======
+**Web Interface**: [http://127.0.0.1:5000](http://127.0.0.1:5000) *(Ctrl+click to open)*
+>>>>>>> 34a68fb (fixed .sh fails)
 
 ***
 

@@ -1,0 +1,8 @@
+#!/home/xaheli/my_codes/test_agri/Answering_Agriculture2/agri_bot_env/bin/python3
+# -*- coding: UTF-8 -*-
+from __future__ import print_function, division, absolute_import
+
+from numba.misc.numba_entry import main
+
+if __name__ == "__main__":
+    main()
