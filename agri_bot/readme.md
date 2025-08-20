@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🧑‍💻 Project Dependencies
 
 this folder is used for translation and transcribing the voice to text for futher retrieval 
@@ -154,3 +155,6 @@ nvidia-cuda-runtime-cu12==12.8.90
 nvidia-cudnn-cu12==9.10.2.21
 
 nvidia-nccl-cu12==2.27.3
+=======
+
+>>>>>>> 34a68fb (fixed .sh fails)

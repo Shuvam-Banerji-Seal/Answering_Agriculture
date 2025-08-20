@@ -1,0 +1,69 @@
+# Enhanced IndicAgri Voice Integration Requirements
+# This file contains all dependencies needed for the integrated voice transcription
+
+# Core Flask web framework
+flask>=2.0.0
+flask-cors>=4.0.0
+
+# Audio processing and voice transcription
+torch>=2.0.0
+torchaudio>=2.0.0
+torchvision>=0.15.0
+
+# Hugging Face and transformers
+transformers>=4.21.0
+huggingface_hub>=0.23.0
+sentencepiece>=0.1.99
+tokenizers>=0.13.0
+
+# IndicTrans toolkit for translation
+IndicTransToolkit>=1.0.0
+
+# NeMo toolkit for speech recognition
+nemo-toolkit[asr]>=1.17.0
+
+# SarvamAI for alternative transcription
+sarvamai>=1.0.0
+
+# Audio format conversion
+ffmpeg-python>=0.2.0
+
+# Utility packages
+numpy>=1.21.0
+scipy>=1.9.0
+librosa>=0.9.0
+soundfile>=0.10.0
+
+# Web search and HTTP requests
+requests>=2.28.0
+beautifulsoup4>=4.9.3
+lxml>=4.6.3
+urllib3>=1.26.0
+
+# DuckDuckGo search
+duckduckgo-search>=3.8.0
+
+# Data handling
+pandas>=1.5.0
+pyyaml>=6.0
+dataclasses-json>=0.5.0
+
+# Logging and monitoring
+colorlog>=6.0.0
+
+# Environment management
+python-dotenv>=0.19.0
+
+# Version compatibility fixes
+pyarrow>=14.0.0
+packaging>=21.0
+
+# Optional but recommended for better performance
+accelerate>=0.20.0
+optimum>=1.12.0
+
+# Development and testing (optional)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+black>=22.0.0
+flake8>=5.0.0

@@ -1,14 +1,22 @@
+<<<<<<< HEAD
 # Agriculture Bot Searcher - Complete Requirements
+=======
+# IndicAgri Bot - Complete Requirements
+>>>>>>> 34a68fb (fixed .sh fails)
 # This file includes all dependencies for both text and voice functionality
 
 # CRITICAL: Core dependencies - these MUST be installed first
 torch>=1.9.0
 torchaudio>=0.9.0
 <<<<<<< HEAD
+<<<<<<< HEAD
 ddgs>=0.2.0
 =======
 duckduckgo-search>=6.0.0
 >>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
+=======
+duckduckgo-search>=3.8.0
+>>>>>>> 34a68fb (fixed .sh fails)
 
 # Core web framework
 flask>=2.0.0
@@ -25,6 +33,7 @@ html5lib>=1.1
 pyyaml>=6.0
 dataclasses-json>=0.5.0
 colorlog>=6.0.0
+<<<<<<< HEAD
 <<<<<<< HEAD
 numpy>=1.21.0
 =======
@@ -53,16 +62,41 @@ sacremoses>=0.0.53
 >>>>>>> 4c50ca585c1b036becba0d3b754e883c5426d926
 # NeMo toolkit for ASR (optional but recommended)
 nemo-toolkit[asr]>=1.15.0
+=======
+numpy>=1.21.0
+
+# Machine Learning and AI
+transformers>=4.20.0
+sentencepiece>=0.1.96
+sacremoses>=0.0.53
+
+# Vector search and embeddings (CPU version - more compatible)
+sentence-transformers==3.0.1
+faiss-cpu>=1.7.0
+
+# Hugging Face (compatible version)
+huggingface-hub>=0.23.0,<1.0
+
+# IndicTrans2 dependencies (correct package name)
+IndicTransToolkit>=1.0.0
+# NeMo toolkit for ASR (optional but recommended)
+# nemo-toolkit[asr]>=1.15.0
+>>>>>>> 34a68fb (fixed .sh fails)
 
 # Audio processing
 librosa>=0.9.0
 soundfile>=0.10.0
 
+<<<<<<< HEAD
 # IndicTrans2 dependencies
 indictrans[cpu]>=2.0.0
 
 # Optional voice services
 sarvam-ai>=0.1.0
+=======
+# Optional voice services
+sarvamai>=1.0.0
+>>>>>>> 34a68fb (fixed .sh fails)
 
 # Development and testing
 pytest>=6.0.0
@@ -72,8 +106,21 @@ pytest-asyncio>=0.18.0
 uvloop>=0.16.0; sys_platform != "win32"
 
 # Optional: Enhanced audio processing
+<<<<<<< HEAD
 pyaudio>=0.2.11
+=======
+# pyaudio>=0.2.11
+>>>>>>> 34a68fb (fixed .sh fails)
 
 # Optional: Jupyter notebook support for development
 notebook>=6.4.0
 ipywidgets>=7.6.0
+<<<<<<< HEAD
+=======
+
+# Environment management
+python-dotenv>=0.19.0
+
+# Additional utilities
+packaging>=21.0
+>>>>>>> 34a68fb (fixed .sh fails)
