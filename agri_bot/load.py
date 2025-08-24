@@ -1,15 +1,15 @@
 import torch
-import torch._dynamo as dynamo
-dynamo.config.suppress_errors = True
-dynamo.config.disable = True
-torch._inductor.config.triton.cudagraphs = False
-import nemo.collections.asr as nemo_asr
-from transformers import AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM
+# import torch._dynamo as dynamo
+# dynamo.config.suppress_errors = True
+# dynamo.config.disable = True
+# torch._inductor.config.triton.cudagraphs = False
+# import nemo.collections.asr as nemo_asr
+# from transformers import AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM
 
 import os 
-from dotenv import load_dotenv
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from IndicTransToolkit.processor import IndicProcessor
+# from dotenv import load_dotenv
+# from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+# from IndicTransToolkit.processor import IndicProcessor
 import subprocess
 
 

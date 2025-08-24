@@ -1,9 +1,9 @@
 import torch
 import os 
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from sarvamai import SarvamAI
 import re
-from IndicTransToolkit.processor import IndicProcessor
+# from IndicTransToolkit.processor import IndicProcessor
 import subprocess
 
 def speech_to_text_bharat(model,audio_path):
@@ -54,8 +54,25 @@ def mono_channel(audio_loc):
     subprocess.run(command, check=True)
     return web_audio_path
 
+def text_to_text(text:str,sarvam_api,src_lan,tg_lan="en-IN"):
+    # load_dotenv()
+    client = SarvamAI(
+        api_subscription_key= sarvam_api
+    )
+    response = client.text.translate(
+    input=text,
+    source_language_code=src_lan,  
+    target_language_code=tg_lan,
+    model="sarvam-translate:v1"
+)
+    pattern = r"translated_text='(.*?)'\s+source_language_code"
+    match = re.search(pattern,str(response), re.DOTALL)
+    translated_text = match.group(1)
+    return translated_text
+
+
 def speech_to_text(audio_path,sarvam_api):
-    load_dotenv()
+    # load_dotenv()
     client = SarvamAI(
         api_subscription_key= sarvam_api
     )
