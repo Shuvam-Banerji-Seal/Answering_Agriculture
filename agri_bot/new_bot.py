@@ -40,9 +40,8 @@ sarvam_lang_codes = {
     "Urdu": "ur-IN",
 }
 
-    
-api_key="sk_jmphhdwq_4Z1uuN4cd0n3u7JXqnui59Zl"
-token='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'
+api_key=""
+token=""
 
 def main(audio_path='marathi01.wav',audio_code='mar_Deva',loaded_model=False,api_key=api_key,hugging_token=token):
     login(hugging_token)
