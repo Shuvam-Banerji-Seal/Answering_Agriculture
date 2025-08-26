@@ -1,305 +1,263 @@
-// Enhanced IndicAgri Bot JavaScript with RAG Pipeline Support
-
+// IndicAgri Bot - Enhanced Voice & Text Interface with Pipeline Visualization
 // Global variables
 let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 let isProcessing = false;
-let currentResponseData = null;
-let stream = null;
 
-// DOM elements cache
-let domElements = {};
+// DOM elements - Core functionality
+const recordBtn = document.getElementById('record-btn');
+const recordingStatus = document.getElementById('recording-status');
+const userInput = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const responseContent = document.getElementById('response-content');
 
-// Initialize DOM elements after page load
-function initializeDOMElements() {
-    domElements = {
-        // Enhanced RAG Controls
-        enableDatabaseSearch: document.getElementById('enable-database-search'),
-        enableWebSearch: document.getElementById('enable-web-search'),
-        numSubQueriesSlider: document.getElementById('num-sub-queries'),
-        numSubQueriesValue: document.getElementById('num-sub-queries-value'),
-        dbChunksSlider: document.getElementById('db-chunks-per-query'),
-        dbChunksValue: document.getElementById('db-chunks-per-query-value'),
-        webResultsSlider: document.getElementById('web-results-per-query'),
-        webResultsValue: document.getElementById('web-results-per-query-value'),
-        synthesisModelSelect: document.getElementById('synthesis-model'),
-        refreshModelsBtn: document.getElementById('refresh-models'),
+// DOM elements - Enhanced RAG controls
+const numSubQueriesSlider = document.getElementById('num-sub-queries');
+const numSubQueriesValue = document.getElementById('num-sub-queries-value');
+const dbChunksSlider = document.getElementById('db-chunks-per-query');
+const dbChunksValue = document.getElementById('db-chunks-per-query-value');
+const webResultsSlider = document.getElementById('web-results-per-query');
+const webResultsValue = document.getElementById('web-results-per-query-value');
+const enableDatabaseSearch = document.getElementById('enable-database-search');
+const enableWebSearch = document.getElementById('enable-web-search');
+const synthesisModelSelect = document.getElementById('synthesis-model');
 
-        // Voice Controls
-        recordBtn: document.getElementById('record-btn'),
-        recordingStatus: document.getElementById('recording-status'),
-        languageSelect: document.getElementById('language-select'),
-        apiKeyInput: document.getElementById('api-key'),
-        hfTokenInput: document.getElementById('hf-token'),
-        useLocalModelCheck: document.getElementById('use-local-model'),
+// DOM elements - Status indicators
+const ragStatus = document.getElementById('rag-status');
+const voiceStatus = document.getElementById('voice-status');
+const modelsStatus = document.getElementById('models-status');
+const refreshStatusBtn = document.getElementById('refresh-status');
+const refreshModelsBtn = document.getElementById('refresh-models');
 
-        // Text Input
-        userInput: document.getElementById('user-input'),
-        sendBtn: document.getElementById('send-btn'),
+// DOM elements - Processing stats
+const processingTimeSpan = document.getElementById('processing-time');
+const subQueriesCountSpan = document.getElementById('sub-queries-count');
+const dbResultsCountSpan = document.getElementById('db-results-count');
+const webResultsCountSpan = document.getElementById('web-results-count');
+const pipelineDetails = document.getElementById('pipeline-details');
 
-        // Response Panel
-        responseTabs: document.querySelectorAll('.tab-btn'),
-        tabPanes: document.querySelectorAll('.tab-pane'),
-        responseContent: document.getElementById('response-content'),
-        pipelineInfo: document.getElementById('pipeline-info'),
-        markdownContent: document.getElementById('markdown-content'),
-        citationsContent: document.getElementById('citations-content'),
-        downloadMarkdownBtn: document.getElementById('download-markdown'),
-        loadingIndicator: document.getElementById('loading-indicator'),
+// DOM elements - Tab system
+const tabButtons = document.querySelectorAll('.tab-btn');
+const tabPanes = document.querySelectorAll('.tab-pane');
+const loadingIndicator = document.getElementById('loading-indicator');
 
-        // Status Panel
-        ragStatus: document.getElementById('rag-status'),
-        voiceStatus: document.getElementById('voice-status'),
-        modelsStatus: document.getElementById('models-status'),
-        refreshStatusBtn: document.getElementById('refresh-status')
-    };
-}
+// DOM elements - Response tabs
+const markdownContent = document.getElementById('markdown-content');
+const citationsContent = document.getElementById('citations-content');
 
-// Initialize on page load
+// DOM elements - Voice settings
+const languageSelect = document.getElementById('language-select');
+const apiKeyInput = document.getElementById('api-key');
+const hfTokenInput = document.getElementById('hf-token');
+const useLocalModelCheck = document.getElementById('use-local-model');
+
+// Language mappings for IndicAgri
+const LANGUAGE_MAPPINGS = {
+    'asm_Beng': { 'name': 'Assamese (Bengali script)', 'code': 'asm_Beng' },
+    'ben_Beng': { 'name': 'Bengali', 'code': 'ben_Beng' },
+    'brx_Deva': { 'name': 'Bodo', 'code': 'brx_Deva' },
+    'doi_Deva': { 'name': 'Dogri', 'code': 'doi_Deva' },
+    'guj_Gujr': { 'name': 'Gujarati', 'code': 'guj_Gujr' },
+    'hin_Deva': { 'name': 'Hindi', 'code': 'hin_Deva' },
+    'kan_Knda': { 'name': 'Kannada', 'code': 'kan_Knda' },
+    'gom_Deva': { 'name': 'Konkani', 'code': 'gom_Deva' },
+    'kas_Arab': { 'name': 'Kashmiri (Arabic script)', 'code': 'kas_Arab' },
+    'kas_Deva': { 'name': 'Kashmiri (Devanagari script)', 'code': 'kas_Deva' },
+    'mai_Deva': { 'name': 'Maithili', 'code': 'mai_Deva' },
+    'mal_Mlym': { 'name': 'Malayalam', 'code': 'mal_Mlym' },
+    'mni_Beng': { 'name': 'Manipuri (Bengali script)', 'code': 'mni_Beng' },
+    'mni_Mtei': { 'name': 'Manipuri (Meitei script)', 'code': 'mni_Mtei' },
+    'mar_Deva': { 'name': 'Marathi', 'code': 'mar_Deva' },
+    'npi_Deva': { 'name': 'Nepali', 'code': 'npi_Deva' },
+    'ory_Orya': { 'name': 'Odia', 'code': 'ory_Orya' },
+    'pan_Guru': { 'name': 'Punjabi', 'code': 'pan_Guru' },
+    'san_Deva': { 'name': 'Sanskrit', 'code': 'san_Deva' },
+    'sat_Olck': { 'name': 'Santali (Ol Chiki script)', 'code': 'sat_Olck' },
+    'snd_Arab': { 'name': 'Sindhi (Arabic script)', 'code': 'snd_Arab' },
+    'snd_Deva': { 'name': 'Sindhi (Devanagari script)', 'code': 'snd_Deva' },
+    'urd_Arab': { 'name': 'Urdu', 'code': 'urd_Arab' },
+    'eng_Latn': { 'name': 'English (Latin script)', 'code': 'eng_Latn' }
+};
+
+// Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🌾 Initializing Enhanced IndicAgri Bot...');
-    
-    // Check browser compatibility first
-    checkBrowserCompatibility();
-    
-    initializeDOMElements();
-    initializeApp();
+    console.log('🌾 IndicAgri Bot - Initializing...');
+    initializeSliders();
     initializeEventListeners();
+    initializeTabs();
+    
+    // Load system status and models
     checkSystemStatus();
     loadAvailableModels();
+    
+    // Initialize microphone on user interaction (not immediately)
+    addMicrophoneInitializer();
+    
+    console.log('✅ IndicAgri Bot - Initialization complete');
 });
 
-// Check browser compatibility and show helpful messages
-function checkBrowserCompatibility() {
-    const userAgent = navigator.userAgent.toLowerCase();
-    const isChrome = userAgent.includes('chrome') && !userAgent.includes('edg');
-    const isFirefox = userAgent.includes('firefox');
-    const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
-    const isEdge = userAgent.includes('edg');
-    
-    console.log('🌐 Browser detection:', { isChrome, isFirefox, isSafari, isEdge });
-    
-    if (!isChrome && !isFirefox && !isSafari && !isEdge) {
-        showNotification('⚠️ For best experience, please use Chrome, Firefox, Safari, or Edge browser.', 'warning');
-    }
-    
-    // Check HTTPS
-    const isSecureContext = window.isSecureContext || 
-                           location.protocol === 'https:' || 
-                           location.hostname === 'localhost' || 
-                           location.hostname === '127.0.0.1' ||
-                           location.hostname.endsWith('.local');
-    
-    console.log('🔒 Secure context:', isSecureContext, 'Protocol:', location.protocol);
-    
-    if (!isSecureContext) {
-        showNotification('🔒 Microphone requires HTTPS or localhost. Some features may be limited on HTTP.', 'warning');
-    }
-    
-    // Check for critical APIs
-    const hasModernMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-    const hasLegacyMedia = !!(navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia);
-    const hasMediaRecorder = !!window.MediaRecorder;
-    
-    console.log('🎤 Media APIs:', { hasModernMedia, hasLegacyMedia, hasMediaRecorder });
-    
-    if (!hasModernMedia && !hasLegacyMedia) {
-        showNotification('❌ Microphone not supported in this browser. Voice features will be disabled.', 'error');
-    }
-    
-    if (!hasMediaRecorder) {
-        showNotification('❌ Audio recording not supported. Please update your browser for voice features.', 'error');
-    }
-    
-    // Show initial guidance
-    if (hasModernMedia || hasLegacyMedia) {
-        setTimeout(() => {
-            showNotification('💡 To use voice features: Click the microphone button and allow access when your browser prompts you.', 'info');
-        }, 2000);
+// Add microphone initializer that triggers on first user interaction
+function addMicrophoneInitializer() {
+    if (recordBtn) {
+        // Add a one-time click handler to initialize microphone
+        const initializeOnFirstClick = async () => {
+            console.log('🎤 First interaction - requesting microphone access...');
+            await initializeMicrophone();
+            
+            // Remove this handler after first use
+            recordBtn.removeEventListener('click', initializeOnFirstClick);
+        };
+        
+        // Add the initializer before the main toggle function
+        recordBtn.addEventListener('click', initializeOnFirstClick, { once: true });
     }
 }
 
-// Main initialization function
-function initializeApp() {
-    console.log('Setting up Enhanced IndicAgri Bot interface...');
+// Initialize slider controls
+function initializeSliders() {
+    // Enhanced RAG sliders
+    if (numSubQueriesSlider && numSubQueriesValue) {
+        numSubQueriesSlider.addEventListener('input', function() {
+            numSubQueriesValue.textContent = this.value;
+        });
+    }
     
-    // Initialize sliders
-    updateSliderValues();
+    if (dbChunksSlider && dbChunksValue) {
+        dbChunksSlider.addEventListener('input', function() {
+            dbChunksValue.textContent = this.value;
+        });
+    }
     
-    // Check microphone permissions and availability
-    checkMicrophonePermissions();
-    
-    console.log('✅ IndicAgri Bot initialized successfully');
-}
-
-// Check microphone permissions and availability
-async function checkMicrophonePermissions() {
-    try {
-        console.log('🎤 Checking microphone permissions...');
-        
-        // First check if we're on a secure context
-        const isSecureContext = window.isSecureContext || 
-                               location.protocol === 'https:' || 
-                               location.hostname === 'localhost' || 
-                               location.hostname === '127.0.0.1' ||
-                               location.hostname.endsWith('.local');
-        
-        if (!isSecureContext) {
-            console.warn('⚠️ Not in secure context - microphone requires HTTPS');
-            updateVoiceStatus('⚠️ Requires HTTPS');
-            showNotification('🔒 Microphone access requires HTTPS. Please access the site via HTTPS or localhost.', 'warning');
-            return;
-        }
-
-        // Check for different getUserMedia implementations
-        let getUserMedia = null;
-        
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            // Modern API (preferred)
-            getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-            console.log('✅ Using modern mediaDevices API');
-        } else if (navigator.getUserMedia) {
-            // Legacy API
-            getUserMedia = navigator.getUserMedia.bind(navigator);
-            console.log('⚠️ Using legacy getUserMedia API');
-        } else if (navigator.webkitGetUserMedia) {
-            // Webkit legacy
-            getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
-            console.log('⚠️ Using webkit getUserMedia API');
-        } else if (navigator.mozGetUserMedia) {
-            // Mozilla legacy
-            getUserMedia = navigator.mozGetUserMedia.bind(navigator);
-            console.log('⚠️ Using mozilla getUserMedia API');
-        }
-        
-        if (!getUserMedia) {
-            console.warn('❌ No getUserMedia API available');
-            updateVoiceStatus('❌ Not supported');
-            showNotification('❌ Microphone not supported in this browser. Please use Chrome, Firefox, or Safari with HTTPS.', 'error');
-            return;
-        }
-
-        // Test microphone access with user-friendly prompt
-        console.log('🎤 Requesting microphone permission...');
-        showNotification('🎤 Please allow microphone access when prompted by your browser.', 'info');
-        
-        // For modern API
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    sampleRate: 44100
-                }
-            });
-            
-            console.log('✅ Microphone permission granted via modern API');
-            updateVoiceStatus('✓ Microphone ready');
-            showNotification('✅ Microphone access granted! You can now use voice input.', 'success');
-            
-            // Stop the test stream
-            stream.getTracks().forEach(track => track.stop());
-        } else {
-            // For legacy APIs, wrap in Promise
-            const stream = await new Promise((resolve, reject) => {
-                getUserMedia({ audio: true }, resolve, reject);
-            });
-            
-            console.log('✅ Microphone permission granted via legacy API');
-            updateVoiceStatus('✓ Microphone ready (legacy)');
-            showNotification('✅ Microphone access granted! You can now use voice input.', 'success');
-            
-            // Stop the test stream
-            if (stream.getTracks) {
-                stream.getTracks().forEach(track => track.stop());
-            } else if (stream.stop) {
-                stream.stop();
-            }
-        }
-        
-    } catch (error) {
-        console.error('❌ Microphone permission error:', error);
-        
-        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-            updateVoiceStatus('❌ Permission denied');
-            showNotification('🚫 Microphone access denied. Please click the microphone icon in your browser\'s address bar and allow access, then refresh the page.', 'error');
-        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-            updateVoiceStatus('❌ No microphone found');
-            showNotification('🎤 No microphone detected. Please connect a microphone and try again.', 'error');
-        } else if (error.name === 'NotSupportedError' || error.name === 'NotSupportedError') {
-            updateVoiceStatus('❌ Not supported');
-            showNotification('❌ Microphone not supported in this browser. Please use Chrome, Firefox, or Safari.', 'error');
-        } else if (error.name === 'SecurityError') {
-            updateVoiceStatus('❌ Security error');
-            showNotification('🔒 Security error: Please ensure you\'re accessing the site via HTTPS or localhost.', 'error');
-        } else {
-            updateVoiceStatus('❌ Error: ' + error.name);
-            showNotification('❌ Microphone error: ' + error.message + '. Please check your browser settings and try again.', 'error');
-        }
-        
-        // Show additional help
-        setTimeout(() => {
-            showNotification('💡 Tip: Look for a microphone icon in your browser\'s address bar and click "Allow" when prompted.', 'info');
-        }, 3000);
+    if (webResultsSlider && webResultsValue) {
+        webResultsSlider.addEventListener('input', function() {
+            webResultsValue.textContent = this.value;
+        });
     }
 }
 
 // Initialize event listeners
 function initializeEventListeners() {
-    console.log('Setting up event listeners...');
-    
     // Voice recording
-    if (domElements.recordBtn) {
-        domElements.recordBtn.addEventListener('click', toggleRecording);
-    }
-
-    // Text input
-    if (domElements.sendBtn) {
-        domElements.sendBtn.addEventListener('click', sendTextQuery);
+    if (recordBtn) {
+        recordBtn.addEventListener('click', toggleRecording);
     }
     
-    if (domElements.userInput) {
-        domElements.userInput.addEventListener('keypress', function(e) {
+    // Text input
+    if (sendBtn) {
+        sendBtn.addEventListener('click', handleTextInput);
+    }
+    
+    if (userInput) {
+        userInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                sendTextQuery();
+                handleTextInput();
             }
         });
     }
-
-    // Sliders
-    if (domElements.numSubQueriesSlider) {
-        domElements.numSubQueriesSlider.addEventListener('input', updateSliderValues);
-    }
-    if (domElements.dbChunksSlider) {
-        domElements.dbChunksSlider.addEventListener('input', updateSliderValues);
-    }
-    if (domElements.webResultsSlider) {
-        domElements.webResultsSlider.addEventListener('input', updateSliderValues);
-    }
-
-    // Buttons
-    if (domElements.refreshModelsBtn) {
-        domElements.refreshModelsBtn.addEventListener('click', loadAvailableModels);
-    }
-    if (domElements.downloadMarkdownBtn) {
-        domElements.downloadMarkdownBtn.addEventListener('click', downloadMarkdown);
-    }
-    if (domElements.refreshStatusBtn) {
-        domElements.refreshStatusBtn.addEventListener('click', checkSystemStatus);
-    }
-
-    // Tab navigation
-    domElements.responseTabs.forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-    });
     
-    console.log('✅ Event listeners initialized');
+    // Status refresh buttons
+    if (refreshModelsBtn) {
+        refreshModelsBtn.addEventListener('click', loadAvailableModels);
+    }
+    
+    if (refreshStatusBtn) {
+        refreshStatusBtn.addEventListener('click', checkSystemStatus);
+    }
+    
+    // Search toggles validation
+    if (enableDatabaseSearch) {
+        enableDatabaseSearch.addEventListener('change', validateSearchSettings);
+    }
+    
+    if (enableWebSearch) {
+        enableWebSearch.addEventListener('change', validateSearchSettings);
+    }
 }
 
-// Toggle recording function
+// Initialize tab system
+function initializeTabs() {
+    if (tabButtons) {
+        tabButtons.forEach(tab => {
+            tab.addEventListener('click', function() {
+                switchTab(this.dataset.tab);
+            });
+        });
+    }
+}
+
+// Validate that at least one search method is enabled
+function validateSearchSettings() {
+    if (!enableDatabaseSearch || !enableWebSearch) return;
+    
+    const dbEnabled = enableDatabaseSearch.checked;
+    const webEnabled = enableWebSearch.checked;
+    
+    if (!dbEnabled && !webEnabled) {
+        // Force enable web search if both are disabled
+        enableWebSearch.checked = true;
+        showNotification('At least one search method must be enabled. Web search has been enabled.', 'warning');
+    }
+}
+
+// Switch tabs in the response panel
+function switchTab(tabName) {
+    // Update tab buttons
+    tabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Update tab panes
+    tabPanes.forEach(pane => {
+        pane.classList.remove('active');
+        if (pane.id === `${tabName}-content` || pane.id === tabName) {
+            pane.classList.add('active');
+        }
+    });
+}
+
+// Show notification to user
+function showNotification(message, type = 'info') {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    // Create a simple notification
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'error' ? '#f44336' : type === 'warning' ? '#ff9800' : '#4caf50'};
+        color: white;
+        padding: 15px;
+        border-radius: 5px;
+        z-index: 1000;
+        max-width: 300px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+
+// Toggle recording functionality
 async function toggleRecording() {
+    if (!recordBtn) {
+        console.error('Record button not found');
+        return;
+    }
+    
     if (isRecording) {
         stopRecording();
     } else {
@@ -307,254 +265,290 @@ async function toggleRecording() {
     }
 }
 
-// Start recording function
+// Start recording
 async function startRecording() {
     try {
-        console.log('🎤 Starting voice recording...');
+        console.log('🔄 Starting recording...');
         
-        // Check for microphone support with multiple fallbacks
-        let getUserMedia = null;
-        
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            // Modern API (preferred)
-            getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-        } else if (navigator.getUserMedia) {
-            // Legacy API
-            getUserMedia = navigator.getUserMedia.bind(navigator);
-        } else if (navigator.webkitGetUserMedia) {
-            // Webkit legacy
-            getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
-        } else if (navigator.mozGetUserMedia) {
-            // Mozilla legacy
-            getUserMedia = navigator.mozGetUserMedia.bind(navigator);
+        // Initialize microphone if not already done
+        if (!mediaRecorder) {
+            const hasPermission = await initializeMicrophone();
+            if (!hasPermission) {
+                return;
+            }
         }
         
-        if (!getUserMedia) {
-            throw new Error('Microphone not supported in this browser. Please use Chrome, Firefox, or Safari with HTTPS.');
-        }
-        
-        // Check secure context
-        const isSecureContext = window.isSecureContext || 
-                               location.protocol === 'https:' || 
-                               location.hostname === 'localhost' || 
-                               location.hostname === '127.0.0.1' ||
-                               location.hostname.endsWith('.local');
-        
-        if (!isSecureContext) {
-            throw new Error('Microphone requires HTTPS or localhost for security. Please access via HTTPS.');
-        }
-        
-        // Get audio stream with robust API handling
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            // Modern API
-            stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    sampleRate: 44100
-                }
-            });
-        } else {
-            // Legacy API - wrap in Promise
-            stream = await new Promise((resolve, reject) => {
-                getUserMedia({ audio: true }, resolve, reject);
-            });
-        }
-        
-        // Check if MediaRecorder is supported
-        if (!window.MediaRecorder) {
-            throw new Error('MediaRecorder not supported in this browser. Please update your browser.');
-        }
-        
-        // Check for codec support
-        let mimeType = 'audio/webm';
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-            mimeType = 'audio/webm;codecs=opus';
-        } else if (MediaRecorder.isTypeSupported('audio/wav')) {
-            mimeType = 'audio/wav';
-        } else {
-            console.warn('⚠️ Preferred audio codecs not supported, using default');
-        }
+        // Request fresh microphone access for recording
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                sampleRate: 16000
+            } 
+        });
         
         // Create MediaRecorder
-        mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/wav'
+        });
+        
         audioChunks = [];
         
-        mediaRecorder.ondataavailable = function(event) {
-            console.log('📊 Audio data available:', event.data.size, 'bytes');
+        mediaRecorder.ondataavailable = event => {
             if (event.data.size > 0) {
                 audioChunks.push(event.data);
             }
         };
         
-        mediaRecorder.onstop = function() {
-            console.log('⏹️ Recording stopped');
-            processRecording();
+        mediaRecorder.onstop = async () => {
+            console.log('🔄 Processing recorded audio...');
+            
+            // Stop the stream
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Process the audio
+            const audioBlob = new Blob(audioChunks, { 
+                type: mediaRecorder.mimeType || 'audio/wav' 
+            });
+            
+            await processAudioBlob(audioBlob);
         };
         
-        mediaRecorder.onerror = function(event) {
-            console.error('❌ MediaRecorder error:', event.error);
-            showNotification('Recording error: ' + (event.error.name || event.error), 'error');
+        mediaRecorder.onerror = event => {
+            console.error('MediaRecorder error:', event.error);
+            showStatus('Recording error: ' + event.error.message, 'error');
             stopRecording();
         };
         
-        // Start recording
-        mediaRecorder.start(1000); // Record in 1-second chunks
+        mediaRecorder.start();
         isRecording = true;
         
         updateRecordingUI(true);
-        showNotification('🎤 Recording started! Speak clearly into your microphone...', 'info');
-        console.log('✅ Recording started successfully');
+        showStatus('Recording... Click again to stop', 'recording');
         
     } catch (error) {
-        console.error('❌ Error starting recording:', error);
-        stopRecording();
+        console.error('Error starting recording:', error);
         
-        // Provide specific error guidance
-        let errorMessage = error.message;
-        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-            errorMessage = 'Microphone access denied. Please allow microphone access and try again.';
-            showNotification('🚫 ' + errorMessage + ' Look for the microphone icon in your browser\'s address bar and click "Allow".', 'error');
-        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-            errorMessage = 'No microphone found. Please connect a microphone and try again.';
-            showNotification('🎤 ' + errorMessage, 'error');
-        } else if (error.name === 'NotSupportedError') {
-            errorMessage = 'Microphone not supported. Please use Chrome, Firefox, or Safari.';
-            showNotification('❌ ' + errorMessage, 'error');
-        } else if (error.name === 'SecurityError') {
-            errorMessage = 'Security error. Please ensure you\'re using HTTPS or localhost.';
-            showNotification('🔒 ' + errorMessage, 'error');
+        let errorMessage = 'Recording failed: ';
+        if (error.name === 'NotAllowedError') {
+            errorMessage += 'Microphone permission denied. Please allow access and try again.';
+        } else if (error.name === 'NotFoundError') {
+            errorMessage += 'No microphone found.';
         } else {
-            showNotification('❌ Recording failed: ' + errorMessage, 'error');
+            errorMessage += error.message;
         }
         
-        logMessage(`[ERROR] Failed to start recording: ${errorMessage}`, 'error');
-        updateVoiceStatus('❌ Recording failed');
+        showStatus(errorMessage, 'error');
+        updateRecordingUI(false);
     }
 }
 
-// Stop recording function
+// Stop recording
 function stopRecording() {
-    console.log('⏹️ Stopping recording...');
-    
     if (mediaRecorder && isRecording) {
+        console.log('⏹️ Stopping recording...');
         mediaRecorder.stop();
         isRecording = false;
         updateRecordingUI(false);
-        
-        // Stop all tracks
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-        }
-        
-        console.log('✅ Recording stopped');
-        showNotification('Recording stopped. Processing audio...', 'info');
+        showStatus('Processing audio...', 'processing');
     }
 }
 
-// Process recording
-async function processRecording() {
-    if (audioChunks.length === 0) {
-        console.warn('⚠️ No audio data recorded');
-        showNotification('No audio recorded. Please try again.', 'warning');
-        return;
-    }
-    
-    console.log('🔄 Processing audio recording...');
-    isProcessing = true;
-    updateProcessingUI(true);
-    
+// Process audio blob
+async function processAudioBlob(audioBlob) {
     try {
-        // Create audio blob
-        const audioBlob = new Blob(audioChunks, { 
-            type: mediaRecorder.mimeType || 'audio/webm'
-        });
+        console.log('🔄 Sending audio for transcription...');
         
-        console.log('📦 Created audio blob:', audioBlob.size, 'bytes, type:', audioBlob.type);
-        
-        // Create form data
         const formData = new FormData();
-        formData.append('audio', audioBlob, 'recording.webm');
-        formData.append('language', domElements.languageSelect?.value || 'en');
-        formData.append('use_local_model', domElements.useLocalModelCheck?.checked || true);
+        formData.append('audio', audioBlob, 'recording.wav');
+        formData.append('language', languageSelect ? languageSelect.value : 'hin_Deva');
+        formData.append('use_local_model', 'false');
+        formData.append('api_key', apiKeyInput ? apiKeyInput.value : '');
+        formData.append('hf_token', hfTokenInput ? hfTokenInput.value : '');
         
-        if (domElements.apiKeyInput?.value) {
-            formData.append('api_key', domElements.apiKeyInput.value);
-        }
-        if (domElements.hfTokenInput?.value) {
-            formData.append('hf_token', domElements.hfTokenInput.value);
-        }
-        
-        console.log('📤 Sending audio to server for transcription...');
-        
-        // Send to server
         const response = await fetch('/transcribe', {
             method: 'POST',
             body: formData
         });
         
         const result = await response.json();
-        console.log('📥 Transcription response:', result);
         
         if (result.success) {
-            // Handle different response formats
-            const transcribedText = result.english_text || result.original_text || result.text || '';
-            console.log('✅ Transcription successful:', transcribedText);
+            console.log('✅ Transcription successful');
+            showStatus('Transcription completed', 'ready');
             
-            // Check if it's an error message
-            if (transcribedText.includes('API key required') || transcribedText.includes('error')) {
-                showNotification('🔑 ' + transcribedText, 'warning');
-                updateVoiceStatus('⚠️ API key needed');
-                return;
+            // Update the input field with the transcribed text
+            if (userInput) {
+                userInput.value = result.english || result.original || '';
             }
             
-            if (domElements.userInput && transcribedText.trim()) {
-                domElements.userInput.value = transcribedText;
-                showNotification('Voice transcribed: "' + transcribedText.substring(0, 50) + '..."', 'success');
-                
-                // Auto-send if text is transcribed and not empty
-                setTimeout(() => sendTextQuery(), 1000);
-            } else {
-                showNotification('❌ No text transcribed. Please try again.', 'warning');
-            }
+            // Show transcription results
+            console.log('Original:', result.original);
+            console.log('English:', result.english);
+            
         } else {
-            throw new Error(result.error || 'Transcription failed');
+            console.error('❌ Transcription failed:', result.error);
+            showStatus('Transcription failed: ' + (result.error || 'Unknown error'), 'error');
         }
         
     } catch (error) {
-        console.error('❌ Error processing recording:', error);
-        showNotification('Transcription failed: ' + error.message, 'error');
-    } finally {
-        isProcessing = false;
-        updateProcessingUI(false);
-        audioChunks = []; // Clear audio chunks
+        console.error('❌ Error processing audio:', error);
+        showStatus('Error processing audio: ' + error.message, 'error');
     }
 }
 
-// Send text query
-async function sendTextQuery() {
-    const query = domElements.userInput?.value?.trim();
-    if (!query) {
-        showNotification('Please enter a question or record voice input', 'warning');
+// Show status message
+function showStatus(message, type = 'info') {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    if (recordingStatus) {
+        recordingStatus.textContent = message;
+        recordingStatus.className = `status-indicator status-${type}`;
+    }
+}
+
+// Update recording UI
+function updateRecordingUI(recording) {
+    if (!recordBtn) {
+        console.error('Record button not found');
         return;
     }
     
-    console.log('📤 Sending query:', query);
+    if (recording) {
+        recordBtn.classList.add('recording');
+        recordBtn.textContent = '⏹️ Stop Recording';
+    } else {
+        recordBtn.classList.remove('recording');
+        recordBtn.textContent = '🎤 Start Recording';
+    }
+}
+
+// Initialize microphone access
+async function initializeMicrophone() {
+    try {
+        console.log('🎤 Requesting microphone access...');
+        
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('getUserMedia not supported by this browser');
+        }
+        
+        // Request microphone permission
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            } 
+        });
+        
+        // Stop the stream immediately - we just needed permission
+        stream.getTracks().forEach(track => track.stop());
+        
+        console.log('✅ Microphone access granted');
+        showStatus('Microphone ready', 'ready');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Microphone access failed:', error);
+        
+        let errorMessage = 'Microphone access failed: ';
+        if (error.name === 'NotAllowedError') {
+            errorMessage += 'Permission denied. Please allow microphone access and refresh the page.';
+        } else if (error.name === 'NotFoundError') {
+            errorMessage += 'No microphone found. Please connect a microphone.';
+        } else if (error.name === 'NotSupportedError') {
+            errorMessage += 'Microphone not supported by your browser.';
+        } else {
+            errorMessage += error.message;
+        }
+        
+        showStatus(errorMessage, 'error');
+        return false;
+    }
+}
+
+// Process audio through voice transcription
+async function processAudio(audioBlob) {
+    isProcessing = true;
+    
+    try {
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.wav');
+        formData.append('language_code', languageSelect.value);
+        formData.append('use_local_model', useLocalModelCheck.checked);
+        
+        const apiKey = apiKeyInput.value.trim();
+        const hfToken = hfTokenInput.value.trim();
+        
+        if (apiKey) formData.append('api_key', apiKey);
+        if (hfToken) formData.append('hf_token', hfToken);
+        
+        const response = await fetch('/transcribe', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showStatus('Audio transcribed successfully', 'success');
+            
+            // Use the English translated text for the query
+            const query = result.english_text || result.original_text;
+            userInput.value = query;
+            
+            // Automatically process the query through RAG
+            await processQuery(query);
+        } else {
+            showStatus(`Transcription failed: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error processing audio:', error);
+        showStatus('Error processing audio', 'error');
+    } finally {
+        isProcessing = false;
+    }
+}
+
+// Handle text input
+async function handleTextInput() {
+    const query = userInput.value.trim();
+    if (!query) {
+        showStatus('Please enter a question', 'warning');
+        return;
+    }
+    
+    await processQuery(query);
+}
+
+// Process query through Enhanced RAG System
+async function processQuery(query) {
+    if (isProcessing) {
+        showStatus('Already processing. Please wait...', 'warning');
+        return;
+    }
+    
+    isProcessing = true;
     showLoading(true);
+    showStatus('Processing your agriculture question...', 'processing');
     
     try {
         const requestData = {
             query: query,
-            enable_database_search: domElements.enableDatabaseSearch?.checked ?? true,
-            enable_web_search: domElements.enableWebSearch?.checked ?? true,
-            num_sub_queries: parseInt(domElements.numSubQueriesSlider?.value || 3),
-            db_chunks_per_query: parseInt(domElements.dbChunksSlider?.value || 3),
-            web_results_per_query: parseInt(domElements.webResultsSlider?.value || 3),
-            synthesis_model: domElements.synthesisModelSelect?.value || 'llama3.2:3b'
+            // Enhanced RAG settings (with fallbacks)
+            num_sub_queries: numSubQueriesSlider ? parseInt(numSubQueriesSlider.value) : 3,
+            db_chunks_per_query: dbChunksSlider ? parseInt(dbChunksSlider.value) : 5,
+            web_results_per_query: webResultsSlider ? parseInt(webResultsSlider.value) : 3,
+            synthesis_model: synthesisModelSelect ? synthesisModelSelect.value : 'llama3.2:latest',
+            enable_database_search: enableDatabaseSearch ? enableDatabaseSearch.checked : true,
+            enable_web_search: enableWebSearch ? enableWebSearch.checked : true,
+            // Legacy settings
+            num_agents: 2,
+            base_port: 11434
         };
-        
-        console.log('📋 Request data:', requestData);
         
         const response = await fetch('/chat', {
             method: 'POST',
@@ -565,384 +559,459 @@ async function sendTextQuery() {
         });
         
         const result = await response.json();
-        console.log('📥 Search response:', result);
         
         if (result.success) {
             currentResponseData = result;
-            displayResults(result);
-            showNotification('Search completed successfully!', 'success');
+            displayResponse(result);
+            showStatus('Response generated successfully', 'success');
         } else {
-            throw new Error(result.error || 'Search failed');
+            showStatus(`Error: ${result.error}`, 'error');
+            responseContent.innerHTML = `<div class="error-message">Error: ${result.error}</div>`;
         }
         
     } catch (error) {
-        console.error('❌ Error sending query:', error);
-        showNotification('Search failed: ' + error.message, 'error');
-        displayError(error.message);
+        console.error('Error processing query:', error);
+        showStatus('Error processing query', 'error');
+        responseContent.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
     } finally {
+        isProcessing = false;
         showLoading(false);
     }
 }
 
-// Display results in the UI
-function displayResults(data) {
-    console.log('📊 Displaying results:', data);
+// Display comprehensive response
+function displayResponse(result) {
+    // Main answer
+    if (responseContent) {
+        responseContent.innerHTML = formatAnswer(result.response);
+    }
     
-    // Clear previous results
-    clearResults();
+    // Pipeline information
+    if (result.enhanced_rag && result.pipeline_info) {
+        displayPipelineInfo(result.pipeline_info, result.search_stats, result.sub_query_results);
+    }
     
-    // Display pipeline information
-    displayPipelineInfo(data);
+    // Markdown content
+    if (result.markdown_content) {
+        displayMarkdownContent(result.markdown_content);
+    }
     
-    // Display main response
-    displayMainResponse(data.response || data.answer);
+    // Citations
+    if (result.response) {
+        extractAndDisplayCitations(result.response, result.markdown_content);
+    }
     
-    // Display markdown content
-    displayMarkdownContent(data.markdown_report);
+    // Update download button
+    if (result.markdown_file_path) {
+        downloadMarkdownBtn.style.display = 'block';
+        downloadMarkdownBtn.dataset.filename = result.markdown_file_path.split('/').pop();
+    }
+}
+
+// Format the main answer with citation highlighting
+function formatAnswer(answer) {
+    // Handle null or undefined answer
+    if (!answer || typeof answer !== 'string') {
+        return '<div class="error-message">No answer generated. This may be due to a timeout or processing error.</div>';
+    }
     
-    // Display citations
-    displayCitations(data.citations);
+    // Highlight citations in the answer
+    const citationRegex = /\[([A-Z]+-\d+-\d+)\]/g;
+    const formattedAnswer = answer.replace(citationRegex, '<span class="citation-link" data-citation="$1">[$1]</span>');
     
-    // Switch to response tab
-    switchTab('response');
+    // Convert markdown-style formatting
+    let formatted = formattedAnswer
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>')
+        .replace(/`(.*?)`/g, '<code>$1</code>');
+    
+    // Convert line breaks to paragraphs
+    formatted = formatted.split('\n\n').map(para => para.trim() ? `<p>${para}</p>` : '').join('');
+    
+    return formatted;
 }
 
 // Display pipeline information
-function displayPipelineInfo(data) {
-    if (!domElements.pipelineInfo) return;
+function displayPipelineInfo(pipelineInfo, searchStats, subQueryResults) {
+    // Update stats
+    if (processingTimeSpan) processingTimeSpan.textContent = `${pipelineInfo.processing_time || 0}s`;
+    if (subQueriesCountSpan) subQueriesCountSpan.textContent = pipelineInfo.sub_queries ? pipelineInfo.sub_queries.length : 0;
+    if (dbResultsCountSpan) dbResultsCountSpan.textContent = pipelineInfo.total_db_chunks || 0;
+    if (webResultsCountSpan) webResultsCountSpan.textContent = pipelineInfo.total_web_results || 0;
     
-    let pipelineHtml = '<div class="pipeline-steps">';
-    
-    // Query refinement
-    if (data.refined_query || data.original_query) {
-        pipelineHtml += `
-            <div class="pipeline-step">
-                <h4>🔍 Query Refinement</h4>
-                <p><strong>Original:</strong> ${data.original_query || data.query}</p>
-                ${data.refined_query ? `<p><strong>Refined:</strong> ${data.refined_query}</p>` : ''}
+    // Display debug-style pipeline output
+    let detailsHTML = `
+        <div class="terminal-output">
+            <h4>🔍 Enhanced RAG Pipeline Debug Output</h4>
+            <div class="debug-section">
+                <div class="debug-line">📝 Original Query: ${pipelineInfo.original_query || 'N/A'}</div>
+                <div class="debug-line">✨ Refined Query: ${pipelineInfo.refined_query || 'N/A'}</div>
+                <div class="debug-line">🔗 Sub-queries Generated: ${pipelineInfo.sub_queries ? pipelineInfo.sub_queries.length : 0}</div>
+                <div class="debug-line">🤖 Synthesis Model: ${pipelineInfo.synthesis_model || 'N/A'}</div>
+                <div class="debug-line">📚 Database Chunks Retrieved: ${pipelineInfo.total_db_chunks || 0}</div>
+                <div class="debug-line">🌐 Web Results Retrieved: ${pipelineInfo.total_web_results || 0}</div>
+                <div class="debug-line">⏱️ Processing Time: ${pipelineInfo.processing_time || 0}s</div>
             </div>
-        `;
-    }
-    
-    // Sub-queries
-    if (data.sub_queries && data.sub_queries.length > 0) {
-        pipelineHtml += `
-            <div class="pipeline-step">
-                <h4>🔀 Sub-queries Generated</h4>
-                <ul>
-                    ${data.sub_queries.map(sq => `<li>${sq}</li>`).join('')}
-                </ul>
-            </div>
-        `;
-    }
-    
-    // Database search results
-    if (data.database_results && data.database_results.length > 0) {
-        pipelineHtml += `
-            <div class="pipeline-step">
-                <h4>🗄️ Database Search Results</h4>
-                <p>Found ${data.database_results.length} relevant chunks</p>
-                <div class="search-results">
-                    ${data.database_results.slice(0, 3).map(result => `
-                        <div class="search-result">
-                            <strong>Score:</strong> ${result.score?.toFixed(3) || 'N/A'}<br>
-                            <strong>Source:</strong> ${result.source || 'Unknown'}<br>
-                            <strong>Content:</strong> ${(result.content || result.text || '').substring(0, 200)}...
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    // Web search results
-    if (data.web_results && data.web_results.length > 0) {
-        pipelineHtml += `
-            <div class="pipeline-step">
-                <h4>🌐 Web Search Results</h4>
-                <p>Found ${data.web_results.length} web sources</p>
-                <div class="search-results">
-                    ${data.web_results.slice(0, 3).map(result => `
-                        <div class="search-result">
-                            <strong>Title:</strong> ${result.title || 'Unknown'}<br>
-                            <strong>URL:</strong> <a href="${result.href || result.url}" target="_blank">${result.href || result.url}</a><br>
-                            <strong>Content:</strong> ${(result.body || result.content || '').substring(0, 200)}...
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    pipelineHtml += '</div>';
-    domElements.pipelineInfo.innerHTML = pipelineHtml;
-}
-
-// Display main response
-function displayMainResponse(response) {
-    if (!domElements.responseContent) return;
-    
-    domElements.responseContent.innerHTML = `
-        <div class="response-text">
-            ${(response || 'No response available').replace(/\n/g, '<br>')}
         </div>
-    `;
+        
+        <div class="terminal-output">
+            <h4>📋 Generated Sub-queries</h4>
+            <div class="debug-section">`;
+    
+    if (pipelineInfo.sub_queries && pipelineInfo.sub_queries.length > 0) {
+        pipelineInfo.sub_queries.forEach((query, index) => {
+            detailsHTML += `<div class="debug-line">${index + 1}. ${query}</div>`;
+        });
+    } else {
+        detailsHTML += `<div class="debug-line">No sub-queries generated</div>`;
+    }
+    
+    detailsHTML += `</div></div>`;
+    
+    // Show sub-query results in debug format
+    if (pipelineInfo.sub_query_results && pipelineInfo.sub_query_results.length > 0) {
+        detailsHTML += `
+            <div class="terminal-output">
+                <h4>🔍 Sub-query Processing Results</h4>
+                <div class="debug-section">`;
+        
+        pipelineInfo.sub_query_results.forEach((result, index) => {
+            detailsHTML += `
+                <div class="debug-line">⚡ Sub-query ${index + 1}:</div>
+                <div class="debug-line">   📚 DB chunks: ${result.db_chunks || 0}</div>
+                <div class="debug-line">   🌐 Web results: ${result.web_results || 0}</div>`;
+            
+            if (result.agent_info) {
+                detailsHTML += `<div class="debug-line">   🤖 Agent: ${result.agent_info.agent || 'N/A'}</div>`;
+            }
+        });
+        
+        detailsHTML += `</div></div>`;
+    }
+    
+    if (pipelineDetails) {
+        pipelineDetails.innerHTML = detailsHTML;
+    }
 }
 
 // Display markdown content
-function displayMarkdownContent(markdown) {
-    if (!domElements.markdownContent) return;
-    
-    domElements.markdownContent.innerHTML = `
-        <pre class="markdown-content">${markdown || 'No markdown content available'}</pre>
-    `;
-}
-
-// Display citations
-function displayCitations(citations) {
-    if (!domElements.citationsContent) return;
-    
-    if (!citations || citations.length === 0) {
-        domElements.citationsContent.innerHTML = '<p class="placeholder-text">No citations available</p>';
+function displayMarkdownContent(markdownText) {
+    if (!markdownContent) {
+        console.warn('markdownContent element not found');
         return;
     }
     
-    const citationsHtml = citations.map((citation, index) => `
-        <div class="citation">
-            <h4>Citation ${index + 1}</h4>
-            <p><strong>Source:</strong> ${citation.source || 'Unknown'}</p>
-            <p><strong>Title:</strong> ${citation.title || 'N/A'}</p>
-            ${citation.url ? `<p><strong>URL:</strong> <a href="${citation.url}" target="_blank">${citation.url}</a></p>` : ''}
-            <p><strong>Content:</strong> ${citation.content || citation.text || 'No content'}</p>
-        </div>
-    `).join('');
+    // Enhanced markdown to HTML conversion
+    let html = markdownText
+        // Headers
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
+        
+        // Bold and italic
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        
+        // Code blocks
+        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        
+        // Lists
+        .replace(/^\* (.*$)/gim, '<li>$1</li>')
+        .replace(/^- (.*$)/gim, '<li>$1</li>')
+        .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+        
+        // Links
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+        
+        // Line breaks and paragraphs
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
     
-    domElements.citationsContent.innerHTML = citationsHtml;
+    // Wrap in paragraphs and clean up
+    html = '<p>' + html + '</p>';
+    html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p>(<h[1-6]>)/g, '$1');
+    html = html.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<pre>)/g, '$1');
+    html = html.replace(/(<\/pre>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<li>)/g, '<ul>$1');
+    html = html.replace(/(<\/li>)<\/p>/g, '$1</ul>');
+    
+    // Handle consecutive list items
+    html = html.replace(/<\/ul><br><ul>/g, '');
+    
+    markdownContent.innerHTML = `<div class="markdown-preview">${html}</div>`;
 }
 
-// Switch tabs
+// Extract and display citations
+function extractAndDisplayCitations(answer, markdownText) {
+    if (!citationsContent) {
+        console.warn('citationsContent element not found');
+        return;
+    }
+    
+    const citationRegex = /\[([A-Z]+-\d+-\d+)\]/g;
+    const citations = [];
+    let match;
+    
+    while ((match = citationRegex.exec(answer)) !== null) {
+        citations.push(match[1]);
+    }
+    
+    if (citations.length === 0) {
+        citationsContent.innerHTML = '<p class="placeholder">No citations found in the response.</p>';
+        return;
+    }
+    
+    // Extract citation details from markdown content
+    let citationsHTML = '<div class="citations-list">';
+    
+    const uniqueCitations = [...new Set(citations)];
+    uniqueCitations.forEach(citation => {
+        // Try to find the citation in the markdown content
+        const citationPattern = new RegExp(`\\[${citation}\\].*?([^\\n]+)`, 'i');
+        const citationMatch = markdownText ? markdownText.match(citationPattern) : null;
+        
+        let citationText = 'Citation details not found';
+        if (citationMatch) {
+            citationText = citationMatch[1].trim();
+        }
+        
+        citationsHTML += `
+            <div class="citation-item" data-citation="${citation}">
+                <div class="citation-id">${citation}</div>
+                <div class="citation-content">${citationText}</div>
+            </div>
+        `;
+    });
+    
+    citationsHTML += '</div>';
+    citationsContent.innerHTML = citationsHTML;
+    
+    // Add click handlers for citation highlighting
+    document.querySelectorAll('.citation-link').forEach(link => {
+        link.addEventListener('click', function() {
+            const citationId = this.dataset.citation;
+            highlightCitation(citationId);
+        });
+    });
+}
+
+// Highlight specific citation
+function highlightCitation(citationId) {
+    // Switch to citations tab
+    switchTab('citations');
+    
+    // Highlight the citation
+    document.querySelectorAll('.citation-item').forEach(item => {
+        item.classList.remove('highlighted');
+    });
+    
+    const targetCitation = document.querySelector(`[data-citation="${citationId}"]`);
+    if (targetCitation) {
+        targetCitation.classList.add('highlighted');
+        targetCitation.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+// Switch response tabs
 function switchTab(tabName) {
-    // Update tab buttons
-    domElements.responseTabs.forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.tab === tabName);
+    // Get response tab buttons dynamically
+    const responseTabs = document.querySelectorAll('.response-tabs .tab-btn');
+    responseTabs.forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.tab === tabName) {
+            tab.classList.add('active');
+        }
     });
     
-    // Update tab panes
-    domElements.tabPanes.forEach(pane => {
-        pane.classList.toggle('active', pane.id === `${tabName}-pane`);
+    tabPanes.forEach(pane => {
+        pane.classList.remove('active');
     });
-}
-
-// Update slider values
-function updateSliderValues() {
-    if (domElements.numSubQueriesSlider && domElements.numSubQueriesValue) {
-        domElements.numSubQueriesValue.textContent = domElements.numSubQueriesSlider.value;
-    }
-    if (domElements.dbChunksSlider && domElements.dbChunksValue) {
-        domElements.dbChunksValue.textContent = domElements.dbChunksSlider.value;
-    }
-    if (domElements.webResultsSlider && domElements.webResultsValue) {
-        domElements.webResultsValue.textContent = domElements.webResultsSlider.value;
+    
+    const targetPane = document.getElementById(`${tabName}-tab`);
+    if (targetPane) {
+        targetPane.classList.add('active');
     }
 }
 
-// Load available models using ollama list
+// Download markdown report
+async function downloadMarkdownReport() {
+    if (!downloadMarkdownBtn.dataset.filename) {
+        showStatus('No markdown report available', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/download_markdown/${downloadMarkdownBtn.dataset.filename}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            // Create and trigger download
+            const blob = new Blob([result.content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = result.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            URL.revokeObjectURL(url);
+            showStatus('Markdown report downloaded', 'success');
+        } else {
+            showStatus(`Download failed: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error downloading markdown:', error);
+        showStatus('Error downloading report', 'error');
+    }
+}
+
+// Load available synthesis models
 async function loadAvailableModels() {
-    console.log('📋 Loading available models...');
+    console.log('🔄 Loading available models...');
+    
+    if (!modelsStatus) {
+        console.warn('Models status element not found');
+        return;
+    }
+    
+    // Show loading state
+    updateStatusIndicator(modelsStatus, null, 'Loading...');
     
     try {
         const response = await fetch('/models');
         const result = await response.json();
         
-        if (result.success && domElements.synthesisModelSelect) {
-            domElements.synthesisModelSelect.innerHTML = '';
-            
-            if (result.models && result.models.length > 0) {
+        if (result.success && result.models.length > 0) {
+            // Update synthesis model dropdown if it exists
+            if (synthesisModelSelect) {
+                // Clear existing options
+                synthesisModelSelect.innerHTML = '';
+                
+                // Add available models
                 result.models.forEach(model => {
                     const option = document.createElement('option');
                     option.value = model;
                     option.textContent = model;
-                    domElements.synthesisModelSelect.appendChild(option);
+                    
+                    // Mark recommended models
+                    if (result.recommended && result.recommended.includes(model)) {
+                        option.textContent += ' (Recommended)';
+                    }
+                    
+                    synthesisModelSelect.appendChild(option);
                 });
-                console.log('✅ Loaded', result.models.length, 'models');
-            } else {
-                const option = document.createElement('option');
-                option.value = 'llama3.2';
-                option.textContent = 'llama3.2 (default)';
-                domElements.synthesisModelSelect.appendChild(option);
-                console.log('⚠️ No models found, using default');
+                
+                // Set default to first recommended model
+                if (result.recommended && result.recommended.length > 0) {
+                    synthesisModelSelect.value = result.recommended[0];
+                }
             }
+            
+            updateStatusIndicator(modelsStatus, true, `${result.count} Models Available`);
+            console.log(`✅ Loaded ${result.count} models`);
+        } else {
+            updateStatusIndicator(modelsStatus, false, result.error || 'No models found');
+            console.warn('⚠️ No models available');
         }
     } catch (error) {
         console.error('❌ Error loading models:', error);
-        showNotification('Failed to load models: ' + error.message, 'warning');
+        updateStatusIndicator(modelsStatus, false, 'Error loading models');
     }
 }
 
 // Check system status
 async function checkSystemStatus() {
-    console.log('🔍 Checking system status...');
+    console.log('🔄 Checking system status...');
+    
+    // Show loading state for all status indicators
+    if (ragStatus) updateStatusIndicator(ragStatus, null, 'Checking...');
+    if (voiceStatus) updateStatusIndicator(voiceStatus, null, 'Checking...');
+    if (modelsStatus) updateStatusIndicator(modelsStatus, null, 'Checking...');
     
     try {
         const response = await fetch('/health');
-        const result = await response.json();
+        const status = await response.json();
         
-        console.log('📊 Health check result:', result);
-        
-        // Update Enhanced RAG status
-        const ragStatus = result.components?.enhanced_rag ? '✓ Available' : '✗ Not available';
-        updateRAGStatus(ragStatus);
-        
-        // Update Voice Transcription status
-        let voiceStatus = '✗ Not available';
-        if (result.components?.voice_transcription) {
-            const methods = result.details?.voice_methods || [];
-            voiceStatus = `✓ Available (${methods.join(', ')})`;
-        } else if (result.components?.api_key_configured) {
-            voiceStatus = '⚠ API key configured';
-        }
-        updateVoiceStatus(voiceStatus);
-        
-        // Update Models status
-        let modelsStatus = '✗ No models';
-        if (result.details?.ollama_models_count > 0) {
-            modelsStatus = `✓ ${result.details.ollama_models_count} models`;
-        } else if (result.components?.ollama_connection === false) {
-            modelsStatus = '✗ Ollama not connected';
-        }
-        updateModelsStatus(modelsStatus);
-        
-        console.log('✅ System status updated');
-        
-        // Show warnings if needed
-        if (!result.components?.api_key_configured && !result.components?.voice_transcription) {
-            showNotification('💡 Voice features require SarvamAI API key. Configure it in settings for voice transcription.', 'info');
-        }
-        
-        if (result.details?.rag_error) {
-            console.warn('RAG system error:', result.details.rag_error);
+        if (status.components) {
+            // Update RAG system status
+            if (ragStatus) {
+                updateStatusIndicator(ragStatus, status.components.enhanced_rag, 
+                    status.components.enhanced_rag ? 'Enhanced RAG Available' : 'RAG Unavailable');
+            }
+            
+            // Update voice system status
+            if (voiceStatus) {
+                updateStatusIndicator(voiceStatus, status.components.voice_transcriber, 
+                    status.components.voice_transcriber ? 'Voice Available' : 'Voice Unavailable');
+            }
+            
+            // Update models status
+            if (modelsStatus) {
+                const modelCount = status.components.ollama_models || 0;
+                updateStatusIndicator(modelsStatus, modelCount > 0, 
+                    modelCount > 0 ? `${modelCount} Models` : 'No Models');
+            }
+            
+            console.log('✅ System status updated');
+        } else {
+            throw new Error('Invalid status response format');
         }
         
     } catch (error) {
         console.error('❌ Error checking status:', error);
-        updateRAGStatus('✗ Connection error');
-        updateVoiceStatus('✗ Connection error');
-        updateModelsStatus('✗ Connection error');
-        showNotification('Failed to check system status. Please check server connection.', 'error');
+        
+        // Set error state for all indicators
+        if (ragStatus) updateStatusIndicator(ragStatus, false, 'Error');
+        if (voiceStatus) updateStatusIndicator(voiceStatus, false, 'Error');
+        if (modelsStatus) updateStatusIndicator(modelsStatus, false, 'Error');
     }
 }
 
-// Download markdown
-function downloadMarkdown() {
-    if (!currentResponseData || !currentResponseData.markdown_report) {
-        showNotification('No markdown content to download', 'warning');
-        return;
-    }
+// Update status indicator
+function updateStatusIndicator(element, isAvailable, text) {
+    if (!element) return;
     
-    const blob = new Blob([currentResponseData.markdown_report], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `indicagri_response_${new Date().toISOString().slice(0, 10)}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    element.textContent = text;
     
-    showNotification('Markdown downloaded successfully!', 'success');
-}
-
-// UI update functions
-function updateRecordingUI(recording) {
-    if (domElements.recordBtn) {
-        domElements.recordBtn.textContent = recording ? '⏹️ Stop Recording' : '🎤 Start Recording';
-        domElements.recordBtn.classList.toggle('recording', recording);
-        domElements.recordBtn.style.backgroundColor = recording ? '#f44336' : '';
-    }
-    if (domElements.recordingStatus) {
-        domElements.recordingStatus.textContent = recording ? '🔴 Recording...' : '';
-        domElements.recordingStatus.classList.toggle('active', recording);
+    if (isAvailable === null) {
+        // Loading state
+        element.className = 'status-indicator status-loading';
+    } else if (isAvailable) {
+        // Available/success state
+        element.className = 'status-indicator status-available';
+    } else {
+        // Unavailable/error state
+        element.className = 'status-indicator status-unavailable';
     }
 }
 
-function updateProcessingUI(processing) {
-    if (domElements.recordingStatus) {
-        domElements.recordingStatus.textContent = processing ? '⏳ Processing...' : '';
-        domElements.recordingStatus.classList.toggle('processing', processing);
-    }
+// Show loading indicator
+function showLoading(show) {
+    loadingIndicator.style.display = show ? 'flex' : 'none';
 }
 
-function showLoading(loading) {
-    if (domElements.loadingIndicator) {
-        domElements.loadingIndicator.style.display = loading ? 'block' : 'none';
-    }
-    if (domElements.sendBtn) {
-        domElements.sendBtn.disabled = loading;
-        domElements.sendBtn.textContent = loading ? '⏳ Processing...' : 'Send Query';
-    }
-}
-
-function clearResults() {
-    if (domElements.responseContent) domElements.responseContent.innerHTML = '<p class="placeholder-text">Your enhanced search results will appear here...</p>';
-    if (domElements.pipelineInfo) domElements.pipelineInfo.innerHTML = '<p class="placeholder-text">Pipeline processing information will appear here...</p>';
-    if (domElements.markdownContent) domElements.markdownContent.innerHTML = '<p class="placeholder-text">Markdown report will appear here...</p>';
-    if (domElements.citationsContent) domElements.citationsContent.innerHTML = '<p class="placeholder-text">Source citations will appear here...</p>';
-}
-
-function displayError(error) {
-    if (domElements.responseContent) {
-        domElements.responseContent.innerHTML = `
-            <div class="error-message">
-                <h3>❌ Error</h3>
-                <p>${error}</p>
-            </div>
-        `;
-    }
-}
-
-// Status update functions
-function updateRAGStatus(status) {
-    if (domElements.ragStatus) {
-        domElements.ragStatus.textContent = status;
-    }
-}
-
-function updateVoiceStatus(status) {
-    if (domElements.voiceStatus) {
-        domElements.voiceStatus.textContent = status;
-    }
-}
-
-function updateModelsStatus(status) {
-    if (domElements.modelsStatus) {
-        domElements.modelsStatus.textContent = status;
-    }
-}
-
-// Show notification
-function showNotification(message, type = 'info') {
-    console.log(`[${type.toUpperCase()}] ${message}`);
+// Show status message
+function showStatus(message, type = 'info') {
+    recordingStatus.textContent = message;
+    recordingStatus.className = `recording-status status-${type}`;
     
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    
-    // Add to page
-    document.body.appendChild(notification);
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-        }
-    }, 5000);
+    // Auto-clear status after 5 seconds for non-error messages
+    if (type !== 'error') {
+        setTimeout(() => {
+            recordingStatus.textContent = '';
+            recordingStatus.className = 'recording-status';
+        }, 5000);
+    }
 }
 
-// Global error handler
-window.addEventListener('error', function(event) {
-    console.error('❌ Global error:', event.error);
-    showNotification('An unexpected error occurred: ' + event.error.message, 'error');
-});
-
-console.log('🌾 IndicAgri Bot JavaScript loaded successfully!');
+// Utility function to format time
+function formatTime(seconds) {
+    return seconds < 60 ? `${seconds.toFixed(1)}s` : `${Math.floor(seconds / 60)}m ${(seconds % 60).toFixed(1)}s`;
+}

@@ -19,6 +19,13 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+# Import torch
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+
 # Import sentence transformers
 try:
     from sentence_transformers import SentenceTransformer
@@ -85,17 +92,22 @@ class QueryRefiner:
     def refine_query(self, query: str) -> str:
         """Refine a crude user query to be more specific and searchable"""
         
-        prompt = f"""You are an expert agricultural query refiner. Your task is to take a user's crude query about agriculture and refine it to be more specific, clear, and searchable.
+        prompt = f"""You are an agricultural AI assistant. Transform the user's query into a more specific and searchable agricultural query while preserving their intent.
 
-Guidelines:
-1. Make the query more specific and technical when appropriate
-2. Add relevant agricultural context if missing
-3. Fix grammar and spelling if needed
-4. Keep the core intent of the original query
-5. Make it suitable for both database search and web search
-6. Return only the refined query, nothing else
+Rules:
+1. Understand the context and agricultural issue being described
+2. Make reasonable assumptions about common agricultural scenarios
+3. Transform it into a clear, searchable query
+4. Keep the original intent and urgency
+5. Add relevant agricultural keywords
+6. Return ONLY the refined query, no explanations
 
-Original query: {query}
+Examples:
+- "My crops are dying" → "crop disease symptoms identification and treatment for dying plants"
+- "Rain damaged my field" → "monsoon crop damage assessment and government compensation schemes in India"
+- "Need money for farming" → "agricultural loans subsidies and financial assistance programs for farmers"
+
+User query: {query}
 
 Refined query:"""
 
@@ -139,17 +151,16 @@ class SubQueryGenerator:
     def generate_sub_queries(self, query: str, num_queries: int = 3) -> List[str]:
         """Generate multiple sub-queries for comprehensive search"""
         
-        prompt = f"""You are an expert at breaking down agricultural queries into specific sub-queries for research.
+        prompt = f"""Break down this agricultural query into {num_queries} specific search queries.
 
-Given the main query, generate {num_queries} specific sub-queries that cover different aspects of the topic. Each sub-query should be:
-1. Specific and focused on one aspect
-2. Suitable for database and web search
-3. Relevant to agriculture
-4. Different from each other
+Create focused, natural language search queries (NOT SQL) that cover different aspects:
+1. Direct problem/solution search
+2. Government policies/schemes related to the issue  
+3. Technical/scientific information about the agricultural issue
 
 Main query: {query}
 
-Generate exactly {num_queries} sub-queries, one per line, numbered 1-{num_queries}:"""
+Generate {num_queries} concise search queries (one per line):"""
 
         try:
             response = requests.post(
@@ -179,12 +190,19 @@ Generate exactly {num_queries} sub-queries, one per line, numbered 1-{num_querie
                         # Remove numbering/bullets and clean up
                         clean_query = line.split('.', 1)[-1].strip() if '.' in line else line
                         clean_query = clean_query.lstrip('•-').strip()
-                        if clean_query and len(clean_query) > 10:
+                        # Remove quotes and extra formatting
+                        clean_query = clean_query.strip('"').strip("'").strip('*').strip()
+                        if clean_query and len(clean_query) > 10 and not clean_query.lower().startswith(('here are', 'okay', 'the following')):
                             sub_queries.append(clean_query)
                 
                 if not sub_queries:
-                    # Fallback: split by lines and take non-empty ones
-                    sub_queries = [line.strip() for line in lines if line.strip() and len(line.strip()) > 10]
+                    # Fallback: split by lines and take meaningful ones
+                    for line in lines:
+                        line = line.strip()
+                        if line and len(line) > 15 and not line.lower().startswith(('here are', 'okay', 'the following')):
+                            # Clean up any remaining formatting
+                            clean_line = line.strip('"').strip("'").strip('*').strip()
+                            sub_queries.append(clean_line)
                 
                 # Ensure we have at least the original query
                 if not sub_queries:
@@ -217,8 +235,7 @@ class DatabaseRetriever:
             raise ImportError("sentence-transformers is required for database retrieval")
         
         # Determine device (GPU if available) with memory check
-        import torch
-        self.device = 'cuda' if torch.cuda.is_available() and self._check_gpu_memory() else 'cpu'
+        self.device = 'cuda' if HAS_TORCH and torch.cuda.is_available() and self._check_gpu_memory() else 'cpu'
         self.logger.info(f"Using device: {self.device}")
         
         # Load embedding model with GPU support
@@ -230,8 +247,7 @@ class DatabaseRetriever:
     def _check_gpu_memory(self) -> bool:
         """Check if GPU has sufficient memory for embeddings"""
         try:
-            import torch
-            if torch.cuda.is_available():
+            if HAS_TORCH and torch.cuda.is_available():
                 gpu_memory = torch.cuda.get_device_properties(0).total_memory
                 # Require at least 2GB for embedding operations
                 return gpu_memory > 2 * 1024**3
@@ -262,7 +278,7 @@ class DatabaseRetriever:
             if self.device == 'cuda' and self.index.ntotal > 1000:  # Only for larger indexes
                 try:
                     import torch
-                    if torch.cuda.is_available() and hasattr(faiss, 'StandardGpuResources'):
+                    if HAS_TORCH and torch.cuda.is_available() and hasattr(faiss, 'StandardGpuResources'):
                         gpu_id = 0
                         res = faiss.StandardGpuResources()
                         self.index = faiss.index_cpu_to_gpu(res, gpu_id, self.index)
@@ -325,9 +341,15 @@ class DatabaseRetriever:
             # Validate metadata compatibility with FAISS index
             if len(self.metadata) != self.index.ntotal:
                 self.logger.warning(f"Metadata count ({len(self.metadata)}) doesn't match FAISS index count ({self.index.ntotal})")
-                self.logger.warning("This may cause indexing errors during retrieval")
+                self.logger.info(f"Using the smaller count for safety: min({len(self.metadata)}, {self.index.ntotal}) = {min(len(self.metadata), self.index.ntotal)}")
+                # Adjust search parameters to work with available data
+                self.max_safe_index = min(len(self.metadata), self.index.ntotal) - 1
             
             self.logger.info(f"Successfully loaded embeddings system with {self.index.ntotal} vectors and {len(self.metadata)} metadata entries")
+            
+            # Set max_safe_index if not already set
+            if not hasattr(self, 'max_safe_index'):
+                self.max_safe_index = min(len(self.metadata), self.index.ntotal) - 1
             
         except Exception as e:
             self.logger.error(f"Error loading embeddings: {e}")
@@ -353,7 +375,12 @@ class DatabaseRetriever:
             
             # Search in FAISS index
             try:
-                distances, indices = self.index.search(query_embedding, top_k)
+                # Adjust top_k to not exceed available data
+                safe_top_k = min(top_k, self.index.ntotal)
+                if hasattr(self, 'max_safe_index'):
+                    safe_top_k = min(safe_top_k, self.max_safe_index + 1)
+                
+                distances, indices = self.index.search(query_embedding, safe_top_k)
             except Exception as search_error:
                 self.logger.error(f"Error searching FAISS index: {search_error}")
                 return []
@@ -362,8 +389,18 @@ class DatabaseRetriever:
             results = []
             for distance, idx in zip(distances[0], indices[0]):
                 try:
-                    if idx < 0 or idx >= len(self.metadata):
-                        self.logger.warning(f"Invalid index {idx}, skipping")
+                    # Enhanced bounds checking
+                    if idx < 0:
+                        self.logger.warning(f"Negative index {idx}, skipping")
+                        continue
+                    
+                    if idx >= len(self.metadata):
+                        self.logger.warning(f"Index {idx} exceeds metadata bounds ({len(self.metadata)}), skipping")
+                        continue
+                    
+                    # Additional safety check for max_safe_index
+                    if hasattr(self, 'max_safe_index') and idx > self.max_safe_index:
+                        self.logger.warning(f"Index {idx} exceeds safe bounds ({self.max_safe_index}), skipping")
                         continue
                         
                     chunk_data = self.metadata[idx]
@@ -619,6 +656,111 @@ class MarkdownGenerator:
 """
         
         return markdown
+    
+    def generate_comprehensive_markdown(self, original_query: str, refined_query: str, 
+                                       sub_queries: List[str], sub_query_results: List[SubQueryResult]) -> str:
+        """Generate comprehensive markdown report with all pipeline information"""
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        markdown = f"""# Enhanced RAG Agriculture Research Report
+
+**Original Query:** {original_query}
+**Refined Query:** {refined_query}
+**Generated:** {timestamp}
+**Pipeline Steps:** Query Refinement → Sub-query Generation → Multi-source Retrieval → Content Synthesis
+
+---
+
+## 🔍 Query Processing Pipeline
+
+### 1. Original User Query
+```
+{original_query}
+```
+
+### 2. Refined Query
+```
+{refined_query}
+```
+
+### 3. Generated Sub-queries ({len(sub_queries)})
+"""
+        for i, sub_query in enumerate(sub_queries, 1):
+            markdown += f"{i}. {sub_query}\n"
+        
+        markdown += "\n---\n\n"
+        
+        # Process each sub-query result
+        for i, result in enumerate(sub_query_results, 1):
+            markdown += f"## Sub-query {i}: {result.original_query}\n\n"
+            
+            # Add agent info if available
+            if result.agent_info:
+                markdown += f"**Agent Enhancement:** {result.agent_info}\n\n"
+            
+            # Database results section with complete content
+            if result.db_results:
+                markdown += "### 📚 Database Results\n\n"
+                for j, chunk in enumerate(result.db_results, 1):
+                    markdown += f"**{j}. [{chunk.title or 'Database Entry'}]**\n"
+                    markdown += f"- **Source:** {chunk.source}\n"
+                    if chunk.source_domain:
+                        markdown += f"- **Domain:** {chunk.source_domain}\n"
+                    markdown += f"- **Similarity Score:** {chunk.similarity_score:.3f}\n"
+                    markdown += f"- **Chunk ID:** {chunk.chunk_id}\n"
+                    markdown += f"- **Full Content:**\n\n{chunk.chunk_text}\n\n"
+                    markdown += f"- **Source Citation:** `[DB-{i}-{j}] {chunk.source}`\n\n"
+                    markdown += "---\n\n"
+            
+            # Web results section with complete content
+            if result.web_results:
+                markdown += "### 🌐 Web Search Results\n\n"
+                for j, web_result in enumerate(result.web_results, 1):
+                    markdown += f"**{j}. [{web_result.title}]({web_result.url})**\n"
+                    markdown += f"- **URL:** {web_result.url}\n"
+                    markdown += f"- **Timestamp:** {datetime.fromtimestamp(web_result.timestamp).strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    if web_result.content:
+                        markdown += f"- **Full Content:**\n\n{web_result.content}\n\n"
+                    else:
+                        markdown += f"- **Summary:**\n\n{web_result.snippet}\n\n"
+                    markdown += f"- **Source Citation:** `[WEB-{i}-{j}] {web_result.title} - {web_result.url}`\n\n"
+                    markdown += "---\n\n"
+            
+            markdown += "---\n\n"
+        
+        # Create citation index
+        markdown += "## 📖 Citation Index\n\n"
+        citation_count = 0
+        for i, result in enumerate(sub_query_results, 1):
+            for j, chunk in enumerate(result.db_results, 1):
+                citation_count += 1
+                markdown += f"{citation_count}. `[DB-{i}-{j}]` - {chunk.source} (Database)\n"
+            for j, web_result in enumerate(result.web_results, 1):
+                citation_count += 1
+                markdown += f"{citation_count}. `[WEB-{i}-{j}]` - {web_result.title} ({web_result.url})\n"
+        
+        # Summary statistics
+        total_db_results = sum(len(r.db_results) for r in sub_query_results)
+        total_web_results = sum(len(r.web_results) for r in sub_query_results)
+        
+        markdown += f"""
+
+## 📊 Summary Statistics
+
+- **Original Query:** {original_query}
+- **Refined Query:** {refined_query}
+- **Total Sub-queries Generated:** {len(sub_queries)}
+- **Total Database Chunks Retrieved:** {total_db_results}
+- **Total Web Results Retrieved:** {total_web_results}
+- **Total Citations Available:** {citation_count}
+
+---
+
+*Comprehensive report generated by Enhanced RAG System*
+"""
+        
+        return markdown
 
 
 class AnswerSynthesizer:
@@ -669,6 +811,9 @@ User's Original Question: {original_query}
 Comprehensive Answer with Inline Citations:"""
 
         try:
+            # Increase timeout for larger models
+            timeout_seconds = 300 if '70b' in model.lower() or '72b' in model.lower() else 180
+            
             response = requests.post(
                 f'{self.ollama_host}/api/generate',
                 json={
@@ -681,7 +826,7 @@ Comprehensive Answer with Inline Citations:"""
                         'num_ctx': 8192
                     }
                 },
-                timeout=120
+                timeout=timeout_seconds
             )
             
             if response.status_code == 200:
@@ -693,7 +838,19 @@ Comprehensive Answer with Inline Citations:"""
                 
         except Exception as e:
             self.logger.error(f"Error synthesizing answer: {e}")
-            return f"Error generating answer: {str(e)}"
+            # Return the markdown content as a fallback with a clear error message
+            if "Read timed out" in str(e):
+                return f"""**Note**: The AI synthesis step timed out due to the large model size. Here is the comprehensive research report instead:
+
+---
+
+{markdown_content[:2000]}...
+
+*[Report truncated for display. Full markdown available in the Pipeline Info tab.]*
+
+**Summary**: Based on the retrieved information, the query has been thoroughly researched but the final AI synthesis could not be completed due to timeout constraints."""
+            else:
+                return f"Error generating answer: {str(e)}\n\nFallback: Please check the Pipeline Info tab for the complete research report."
 
 
 class MultiAgentRetriever:
@@ -843,45 +1000,68 @@ class EnhancedRAGSystem:
         """Process user query through the complete RAG pipeline with toggles"""
         
         start_time = datetime.now()
+        print(f"\n🔍 Starting Enhanced RAG Pipeline")
+        print(f"📝 Original Query: {user_query}")
+        print(f"⚙️ Parameters:")
+        print(f"   - Sub-queries: {num_sub_queries}")
+        print(f"   - DB chunks per query: {db_chunks_per_query}")
+        print(f"   - Web results per query: {web_results_per_query}")
+        print(f"   - Synthesis model: {synthesis_model}")
+        print(f"   - Database search: {'✅ enabled' if enable_database_search else '❌ disabled'}")
+        print(f"   - Web search: {'✅ enabled' if enable_web_search else '❌ disabled'}")
+        
         self.logger.info(f"Processing query: {user_query}")
         self.logger.info(f"Database search: {'enabled' if enable_database_search else 'disabled'}")
         self.logger.info(f"Web search: {'enabled' if enable_web_search else 'disabled'}")
         
         # Validate that at least one search method is enabled and available
         if not enable_database_search and not enable_web_search:
+            error_msg = 'At least one search method (database or web) must be enabled'
+            print(f"❌ Error: {error_msg}")
             return {
-                'error': 'At least one search method (database or web) must be enabled',
+                'error': error_msg,
                 'original_query': user_query,
                 'processing_time': 0
             }
         
         # Check if database search is requested but not available
         if enable_database_search and not self.db_available:
+            print("⚠️ Warning: Database search requested but database not available, using web search only")
             self.logger.warning("Database search requested but database not available, using web search only")
             enable_database_search = False
             
         # Ensure at least web search is available if database is not
         if not enable_database_search and not enable_web_search:
+            error_msg = 'No search methods available (database failed to load and web search disabled)'
+            print(f"❌ Error: {error_msg}")
             return {
-                'error': 'No search methods available (database failed to load and web search disabled)',
+                'error': error_msg,
                 'original_query': user_query,
                 'processing_time': 0
             }
         
         # Step 1: Refine the query
+        print(f"\n🔧 Step 1: Refining query...")
         refined_query = self.query_refiner.refine_query(user_query)
+        print(f"✨ Refined Query: {refined_query}")
         
         # Step 2: Generate sub-queries
+        print(f"\n🔗 Step 2: Generating {num_sub_queries} sub-queries...")
         sub_queries = self.sub_query_generator.generate_sub_queries(refined_query, num_sub_queries)
+        print(f"📋 Generated Sub-queries:")
+        for i, sq in enumerate(sub_queries, 1):
+            print(f"   {i}. {sq}")
         
         # Step 3: Process each sub-query
+        print(f"\n🔍 Step 3: Processing sub-queries...")
         sub_query_results = []
         
         with ThreadPoolExecutor(max_workers=5) as executor:
             # Submit all sub-query processing tasks
             future_to_query = {}
             
-            for sub_query in sub_queries:
+            for i, sub_query in enumerate(sub_queries, 1):
+                print(f"⚡ Submitting sub-query {i} for processing...")
                 future = executor.submit(
                     self._process_sub_query, 
                     sub_query, 
@@ -890,58 +1070,136 @@ class EnhancedRAGSystem:
                     enable_database_search,
                     enable_web_search
                 )
-                future_to_query[future] = sub_query
+                future_to_query[future] = (i, sub_query)
             
             # Collect results
             for future in as_completed(future_to_query):
-                sub_query = future_to_query[future]
+                query_num, sub_query = future_to_query[future]
                 try:
+                    print(f"📥 Collecting results for sub-query {query_num}...")
                     result = future.result()
                     sub_query_results.append(result)
+                    
+                    # Log results for this sub-query
+                    db_count = len(result.db_results) if hasattr(result, 'db_results') else 0
+                    web_count = len(result.web_results) if hasattr(result, 'web_results') else 0
+                    print(f"   Sub-query {query_num}: {db_count} DB chunks, {web_count} web results")
+                    
                 except Exception as e:
+                    print(f"❌ Error processing sub-query {query_num}: {e}")
                     self.logger.error(f"Error processing sub-query '{sub_query}': {e}")
-                    # Add empty result
-                    sub_query_results.append(SubQueryResult(sub_query, [sub_query]))
         
-        # Step 4: Generate markdown report
-        markdown_content = self.markdown_generator.generate_markdown(sub_query_results, user_query)
+        # Step 4: Generate comprehensive markdown report
+        print(f"\n📄 Step 4: Generating comprehensive markdown report...")
+        markdown_content = self.markdown_generator.generate_comprehensive_markdown(
+            original_query=user_query,
+            refined_query=refined_query,
+            sub_queries=sub_queries,
+            sub_query_results=sub_query_results
+        )
         
-        # Step 5: Save markdown to temp file
-        temp_file_path = os.path.join(self.temp_dir, f"rag_report_{int(datetime.now().timestamp())}.md")
-        with open(temp_file_path, 'w', encoding='utf-8') as f:
-            f.write(markdown_content)
+        # Save markdown to temporary file
+        temp_file_path = None
+        try:
+            temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.md', encoding='utf-8')
+            temp_file.write(markdown_content)
+            temp_file.close()
+            temp_file_path = temp_file.name
+            print(f"💾 Markdown report saved to: {temp_file_path}")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not save markdown file: {e}")
+            self.logger.warning(f"Could not save markdown file: {e}")
         
-        # Step 6: Synthesize final answer
-        final_answer = self.answer_synthesizer.synthesize_answer(user_query, markdown_content, synthesis_model)
+        # Step 5: Synthesize final answer
+        print(f"\n🤖 Step 5: Synthesizing final answer using {synthesis_model}...")
+        final_answer = self.answer_synthesizer.synthesize_answer(
+            original_query=user_query,
+            markdown_content=markdown_content,
+            model=synthesis_model
+        )
         
+        # Calculate processing time and statistics
         processing_time = (datetime.now() - start_time).total_seconds()
+        total_db_chunks = sum(len(r.db_results) for r in sub_query_results)
+        total_web_results = sum(len(r.web_results) for r in sub_query_results)
         
-        return {
+        print(f"\n✅ Pipeline completed successfully!")
+        print(f"⏱️ Total processing time: {processing_time:.2f} seconds")
+        print(f"📊 Final Statistics:")
+        print(f"   - Total database chunks retrieved: {total_db_chunks}")
+        print(f"   - Total web results retrieved: {total_web_results}")
+        print(f"   - Sub-queries processed: {len(sub_queries)}")
+        print(f"   - Final answer length: {len(final_answer)} characters")
+        print(f"   - Markdown report length: {len(markdown_content)} characters")
+        
+        # Create comprehensive result structure
+        result = {
+            'success': True,
+            'answer': final_answer,
             'original_query': user_query,
-            'refined_query': refined_query,
-            'sub_queries': sub_queries,
-            'sub_query_results': sub_query_results,
+            'pipeline_info': {
+                'refined_query': refined_query,
+                'sub_queries': sub_queries,
+                'sub_query_results': [
+                    {
+                        'query': r.original_query,
+                        'db_chunks': len(r.db_results),
+                        'web_results': len(r.web_results),
+                        'agent_info': r.agent_info
+                    } for r in sub_query_results
+                ],
+                'total_db_chunks': total_db_chunks,
+                'total_web_results': total_web_results,
+                'synthesis_model': synthesis_model,
+                'search_settings': {
+                    'database_search_enabled': enable_database_search,
+                    'web_search_enabled': enable_web_search,
+                    'db_chunks_per_query': db_chunks_per_query if enable_database_search else 0,
+                    'web_results_per_query': web_results_per_query if enable_web_search else 0
+                }
+            },
             'markdown_content': markdown_content,
             'markdown_file_path': temp_file_path,
-            'final_answer': final_answer,
-            'synthesis_model': synthesis_model,
-            'processing_time': processing_time,
-            'search_settings': {
-                'database_search_enabled': enable_database_search,
-                'web_search_enabled': enable_web_search,
-                'db_chunks_per_query': db_chunks_per_query if enable_database_search else 0,
-                'web_results_per_query': web_results_per_query if enable_web_search else 0
-            },
-            'stats': {
-                'total_db_chunks': sum(len(r.db_results) for r in sub_query_results),
-                'total_web_results': sum(len(r.web_results) for r in sub_query_results),
-                'num_sub_queries': len(sub_queries)
-            }
+            'citations': self._extract_citations(sub_query_results),
+            'processing_time': processing_time
         }
+        
+        return result
+    
+    def _extract_citations(self, sub_query_results: List[SubQueryResult]) -> List[Dict[str, Any]]:
+        """Extract citations from sub-query results"""
+        citations = []
+        
+        for i, result in enumerate(sub_query_results):
+            # Database citations
+            for j, db_result in enumerate(result.db_results):
+                citations.append({
+                    'type': 'database',
+                    'id': f'DB-{i+1}-{j+1}',
+                    'title': db_result.title or db_result.source,
+                    'source': db_result.source,
+                    'content_preview': db_result.chunk_text[:200] + "..." if len(db_result.chunk_text) > 200 else db_result.chunk_text,
+                    'similarity_score': db_result.similarity_score
+                })
+            
+            # Web citations
+            for j, web_result in enumerate(result.web_results):
+                citations.append({
+                    'type': 'web',
+                    'id': f'WEB-{i+1}-{j+1}',
+                    'title': web_result.title,
+                    'url': web_result.url,
+                    'content_preview': web_result.snippet[:200] + "..." if len(web_result.snippet) > 200 else web_result.snippet,
+                    'relevance_score': web_result.relevance_score
+                })
+        
+        return citations
     
     def _process_sub_query(self, sub_query: str, db_chunks: int, web_results: int, 
                           enable_db: bool = True, enable_web: bool = True) -> SubQueryResult:
         """Process a single sub-query to get database and web results with multi-agent enhancement"""
+        
+        print(f"  🔍 Processing sub-query: {sub_query}")
         
         # Use multi-agent enhancement if available
         enhanced_query = sub_query
@@ -958,8 +1216,10 @@ class EnhancedRAGSystem:
                         'agent_focus': enhancement['agent_focus'],
                         'agent_expertise': enhancement['agent_expertise']
                     }
+                    print(f"    🤖 Enhanced by {enhancement['agent']}: {enhanced_query}")
                     self.logger.info(f"Enhanced query using {enhancement['agent']}: {enhanced_query}")
             except Exception as e:
+                print(f"    ⚠️ Multi-agent enhancement failed: {e}")
                 self.logger.warning(f"Multi-agent enhancement failed: {e}")
         
         db_results = []
@@ -968,17 +1228,23 @@ class EnhancedRAGSystem:
         # Get database results if enabled (use enhanced query)
         if enable_db and db_chunks > 0:
             try:
+                print(f"    📚 Searching database for {db_chunks} chunks...")
                 db_results = self.db_retriever.retrieve_chunks(enhanced_query, db_chunks)
+                print(f"    ✅ Retrieved {len(db_results)} database chunks")
                 self.logger.info(f"Retrieved {len(db_results)} database chunks for: {enhanced_query}")
             except Exception as e:
+                print(f"    ❌ Database retrieval failed: {e}")
                 self.logger.error(f"Database retrieval failed for '{enhanced_query}': {e}")
         
         # Get web results if enabled (use enhanced query)
         if enable_web and web_results > 0:
             try:
+                print(f"    🌐 Searching web for {web_results} results...")
                 web_results_list = self.web_searcher.search(enhanced_query, web_results)
+                print(f"    ✅ Retrieved {len(web_results_list)} web results")
                 self.logger.info(f"Retrieved {len(web_results_list)} web results for: {enhanced_query}")
             except Exception as e:
+                print(f"    ❌ Web search failed: {e}")
                 self.logger.error(f"Web search failed for '{enhanced_query}': {e}")
         
         result = SubQueryResult(
@@ -1013,7 +1279,7 @@ if __name__ == "__main__":
     setup_logging()
     
     # Initialize the system
-    embeddings_dir = "/store/Answering_Agriculture/agriculture_embeddings"
+    embeddings_dir = "/store/testing/Answering_Agriculture/agriculture_embeddings"
     
     try:
         rag_system = EnhancedRAGSystem(embeddings_dir)
@@ -1028,11 +1294,11 @@ if __name__ == "__main__":
         
         print("=== ENHANCED RAG RESULT ===")
         print(f"Original Query: {result['original_query']}")
-        print(f"Refined Query: {result['refined_query']}")
-        print(f"Sub-queries: {result['sub_queries']}")
-        print(f"Processing Time: {result['processing_time']:.2f}s")
-        print(f"Final Answer: {result['final_answer'][:500]}...")
-        print(f"Markdown saved to: {result['markdown_file_path']}")
+        print(f"Refined Query: {result.get('refined_query', 'N/A')}")
+        print(f"Sub-queries: {result.get('sub_queries', [])}")
+        print(f"Processing Time: {result.get('processing_time', 0):.2f}s")
+        print(f"Final Answer: {result.get('answer', 'No answer')[:500]}...")
+        print(f"Markdown saved to: {result.get('markdown_file_path', 'N/A')}")
         
     except Exception as e:
         print(f"Error: {e}")
