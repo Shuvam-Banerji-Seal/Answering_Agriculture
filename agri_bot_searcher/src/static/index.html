@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌾 IndicAgri Bot - Voice & Text Interface</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌾 IndicAgri Bot</h1>
+            <p class="subtitle">Advanced Agricultural Assistant with Voice Support</p>
+            <p>Ask questions about farming, crops, soil, pests, and sustainable agriculture in your preferred language</p>
+        </div>
+
+        <div class="main-content">
+            <div class="config-panel">
+                <h3>⚙️ Configuration</h3>
+                <div class="form-group">
+                    <label for="num-agents">Number of Agents:</label>
+                    <div class="slider-container">
+                        <input type="range" id="num-agents" class="form-control" min="1" max="5" value="2">
+                        <span id="num-agents-value" class="slider-value">2</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="ollama-port">Ollama Base Port:</label>
+                    <input type="number" id="ollama-port" class="form-control" value="11434" min="1024" max="65535">
+                </div>
+            </div>
+
+            <div class="voice-panel">
+                <h3>🎤 Voice Input</h3>
+                
+                <div class="voice-settings">
+                    <h4>Voice Settings</h4>
+                    <div class="form-group">
+                        <label for="language-select">Select Language:</label>
+                        <select id="language-select" class="form-control language-selector">
+                            <option value="hin_Deva" selected>Hindi</option>
+                            <option value="ben_Beng">Bengali</option>
+                            <option value="guj_Gujr">Gujarati</option>
+                            <option value="kan_Knda">Kannada</option>
+                            <option value="mal_Mlym">Malayalam</option>
+                            <option value="mar_Deva">Marathi</option>
+                            <option value="ory_Orya">Odia</option>
+                            <option value="pan_Guru">Punjabi</option>
+                            <option value="urd_Arab">Urdu</option>
+                            <option value="eng_Latn">English</option>
+                        </select>
+                    </div>
+                    
+                    <form id="api-form">
+                        <div class="settings-grid">
+                            <div class="form-group">
+                                <label for="api-key">SarvamAI API Key (Optional):</label>
+                                <input type="password" id="api-key" class="form-control" placeholder="Enter API key for SarvamAI">
+                                <small class="text-muted">
+                                    <a href="#" onclick="showApiKeyHelp('sarvam')" style="color: var(--primary-color);">
+                                        ℹ️ How to get SarvamAI API Key?
+                                    </a>
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label for="hf-token">Hugging Face Token (Optional):</label>
+                                <input type="password" id="hf-token" class="form-control" placeholder="Enter HF token">
+                                <small class="text-muted">
+                                    <a href="#" onclick="showApiKeyHelp('huggingface')" style="color: var(--primary-color);">
+                                        ℹ️ How to get Hugging Face Token?
+                                    </a>
+                                </small>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="use-local-model">
+                        <label for="use-local-model">Use Local Model (experimental - requires setup)</label>
+                        <small class="text-muted" style="display: block; margin-top: 5px;">
+                            ⚠️ Local models currently disabled due to dependency conflicts. SarvamAI recommended.
+                        </small>
+                    </div>
+
+                    <div class="info-box" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin-top: 15px;">
+                        <small style="color: #856404;">
+                            🔒 <strong>Security Note:</strong> API keys are stored locally in your browser and transmitted securely. 
+                            For production use, consider accessing via HTTPS. On localhost, HTTP is acceptable for development.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="voice-controls">
+                    <button id="record-button" class="record-button">
+                        <span id="record-icon">🎤</span>
+                        <span id="record-text">Start Recording</span>
+                    </button>
+                    <div id="recording-status" class="status-indicator status-ready">
+                        <span>🟢</span> Ready to Record
+                    </div>
+                </div>
+
+                <div class="transcription-display">
+                    <h4>📝 Transcription Results</h4>
+                    <div id="original-text" class="transcribed-text">
+                        <strong>Original:</strong> <span id="original-content">No transcription yet</span>
+                    </div>
+                    <div id="translated-text" class="transcribed-text">
+                        <strong>English:</strong> <span id="translated-content">No translation yet</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="query-section">
+            <h3>💬 Ask Your Question</h3>
+            <div class="query-input-group">
+                <textarea id="query-input" class="query-input" placeholder="Type your agricultural question here or use voice input above..."></textarea>
+                <button id="send-button" class="send-button">Send Query</button>
+            </div>
+        </div>
+
+        <div class="response-section">
+            <h3>🌱 IndicAgri Response</h3>
+            <div id="response-content" class="response-content">
+                Welcome to IndicAgri Bot! Ask any agriculture-related question in text or voice.
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

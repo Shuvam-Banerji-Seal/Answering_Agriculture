@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Agriculture Bot Searcher - Advanced Web UI
+IndicAgri Bot - Advanced Web UI
 A comprehensive Flask web interface for the agriculture chatbot with configurable parameters
 """
 
@@ -44,7 +44,7 @@ if HAS_FLASK:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>🌾 Agriculture Bot Searcher - Web Interface</title>
+        <title>🌾 IndicAgri Bot - Web Interface</title>
         <style>
             :root {
                 --primary-color: #2e7d32;
@@ -360,7 +360,7 @@ if HAS_FLASK:
     </head>
     <body>
         <div class="header">
-            <h1>🌾 Agriculture Bot Searcher</h1>
+            <h1>🌾 IndicAgri Bot</h1>
             <p>Multi-Agent AI Assistant for Agricultural Intelligence</p>
         </div>
 
@@ -674,7 +674,7 @@ if HAS_FLASK:
             print("Flask is not installed. Please install it with: pip install flask flask-cors")
             return
         
-        print(f"🌾 Agriculture Bot Searcher Web Interface")
+        print(f"🌾 IndicAgri Bot Web Interface")
         print(f"🚀 Starting server on http://{host}:{port}")
         print(f"📝 Make sure Ollama is running on the configured ports")
         print(f"🔧 Default configuration: Base port 11434, 2 agents")

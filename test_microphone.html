@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microphone Test - IndicAgri Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f0f8ff;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 Microphone Compatibility Test</h1>
+    <p>This page will help diagnose microphone access issues for IndicAgri Bot.</p>
+
+    <div class="test-section">
+        <h2>Browser Information</h2>
+        <div id="browser-info"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Security Context</h2>
+        <div id="security-info"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>API Support</h2>
+        <div id="api-support"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Microphone Test</h2>
+        <button id="test-mic">Test Microphone Access</button>
+        <div id="mic-test-result"></div>
+    </div>
+
+    <div class="info-box">
+        <h3>Troubleshooting Tips:</h3>
+        <ul>
+            <li><strong>HTTPS Required:</strong> Modern browsers require HTTPS for microphone access (except on localhost)</li>
+            <li><strong>Permissions:</strong> Make sure you allow microphone access when prompted</li>
+            <li><strong>Browser Support:</strong> Use Chrome 53+, Firefox 36+, or Safari 11+</li>
+            <li><strong>Hardware:</strong> Ensure a microphone is connected and working</li>
+        </ul>
+    </div>
+
+    <script>
+        // Display browser information
+        function displayBrowserInfo() {
+            const info = document.getElementById('browser-info');
+            info.innerHTML = `
+                <strong>User Agent:</strong> ${navigator.userAgent}<br>
+                <strong>Platform:</strong> ${navigator.platform}<br>
+                <strong>Language:</strong> ${navigator.language}<br>
+                <strong>Cookies Enabled:</strong> ${navigator.cookieEnabled}
+            `;
+        }
+
+        // Check security context
+        function checkSecurityContext() {
+            const info = document.getElementById('security-info');
+            const isSecure = window.isSecureContext || location.protocol === 'https:' || 
+                           location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            
+            let statusClass = isSecure ? 'success' : 'error';
+            let statusText = isSecure ? '✅ Secure Context' : '❌ Insecure Context';
+            
+            info.innerHTML = `
+                <div class="status ${statusClass}">
+                    ${statusText}<br>
+                    <strong>Protocol:</strong> ${location.protocol}<br>
+                    <strong>Hostname:</strong> ${location.hostname}<br>
+                    <strong>Port:</strong> ${location.port || 'default'}<br>
+                    <strong>Is Secure Context:</strong> ${window.isSecureContext}
+                </div>
+            `;
+        }
+
+        // Check API support
+        function checkAPISupport() {
+            const info = document.getElementById('api-support');
+            let results = [];
+            
+            // MediaDevices API
+            if (navigator.mediaDevices) {
+                results.push('✅ MediaDevices API supported');
+            } else {
+                results.push('❌ MediaDevices API not supported');
+            }
+            
+            // getUserMedia
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                results.push('✅ getUserMedia supported');
+            } else {
+                results.push('❌ getUserMedia not supported');
+            }
+            
+            // MediaRecorder
+            if (window.MediaRecorder) {
+                results.push('✅ MediaRecorder supported');
+                
+                // Check MIME types
+                const mimeTypes = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/mp4',
+                    'audio/wav'
+                ];
+                
+                results.push('<br><strong>Supported Audio Formats:</strong>');
+                mimeTypes.forEach(type => {
+                    const supported = MediaRecorder.isTypeSupported ? MediaRecorder.isTypeSupported(type) : false;
+                    results.push(`${supported ? '✅' : '❌'} ${type}`);
+                });
+            } else {
+                results.push('❌ MediaRecorder not supported');
+            }
+            
+            info.innerHTML = results.join('<br>');
+        }
+
+        // Test microphone access
+        async function testMicrophone() {
+            const resultDiv = document.getElementById('mic-test-result');
+            const button = document.getElementById('test-mic');
+            
+            button.disabled = true;
+            button.textContent = 'Testing...';
+            resultDiv.innerHTML = '<div class="status warning">⏳ Testing microphone access...</div>';
+            
+            try {
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    } 
+                });
+                
+                // Success!
+                resultDiv.innerHTML = `
+                    <div class="status success">
+                        ✅ Microphone access granted successfully!<br>
+                        <strong>Audio Tracks:</strong> ${stream.getAudioTracks().length}<br>
+                        <strong>Track Label:</strong> ${stream.getAudioTracks()[0]?.label || 'Unknown'}<br>
+                        <strong>Track Kind:</strong> ${stream.getAudioTracks()[0]?.kind || 'Unknown'}
+                    </div>
+                `;
+                
+                // Test MediaRecorder
+                try {
+                    const recorder = new MediaRecorder(stream);
+                    resultDiv.innerHTML += `
+                        <div class="status success">
+                            ✅ MediaRecorder created successfully!<br>
+                            <strong>MIME Type:</strong> ${recorder.mimeType || 'Auto-detected'}
+                        </div>
+                    `;
+                } catch (recorderError) {
+                    resultDiv.innerHTML += `
+                        <div class="status error">
+                            ❌ MediaRecorder creation failed: ${recorderError.message}
+                        </div>
+                    `;
+                }
+                
+                // Stop the stream
+                stream.getTracks().forEach(track => track.stop());
+                
+            } catch (error) {
+                let errorMessage = `❌ Microphone test failed: ${error.name} - ${error.message}`;
+                let errorClass = 'error';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += '<br><strong>Solution:</strong> Please allow microphone access and try again.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += '<br><strong>Solution:</strong> Please connect a microphone and try again.';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage += '<br><strong>Solution:</strong> Please use a supported browser or enable HTTPS.';
+                }
+                
+                resultDiv.innerHTML = `<div class="status ${errorClass}">${errorMessage}</div>`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Test Microphone Access';
+            }
+        }
+
+        // Initialize tests on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            displayBrowserInfo();
+            checkSecurityContext();
+            checkAPISupport();
+            
+            document.getElementById('test-mic').addEventListener('click', testMicrophone);
+        });
+    </script>
+</body>
+</html>

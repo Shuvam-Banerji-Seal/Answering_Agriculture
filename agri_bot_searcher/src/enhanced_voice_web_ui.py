@@ -51,7 +51,7 @@ if HAS_FLASK:
     def process_audio_file(audio_path, language_code, use_local_model=True, api_key=None, hf_token=None):
         """Process audio file using IndicAgri voice transcription"""
         try:
-            if voice_transcriber.is_available():
+            if voice_transcriber.is_available() or api_key:
                 # Use the integrated IndicAgri voice transcription
                 original_text, english_text = voice_transcriber.transcribe_audio(
                     audio_path=audio_path,
@@ -62,7 +62,8 @@ if HAS_FLASK:
                 )
                 return original_text, english_text
             else:
-                return "Voice transcription not available", "Voice transcription not available - agri_bot modules not found"
+                error_msg = "Voice transcription requires SarvamAI API key. Please enter your API key in the settings."
+                return error_msg, error_msg
         except Exception as e:
             logging.error(f"Audio processing error: {e}")
             error_msg = f"Error processing audio: {str(e)}"
@@ -417,6 +418,18 @@ if HAS_FLASK:
                 border: 1px solid #ffcc02;
             }
 
+            .status-warning {
+                background: #fff8e1;
+                color: #f57c00;
+                border: 1px solid #ffcc02;
+            }
+
+            .status-error {
+                background: #ffebee;
+                color: var(--voice-recording);
+                border: 1px solid #ffcdd2;
+            }
+
             .voice-settings {
                 background: linear-gradient(135deg, #f8fff8 0%, #e8f5e9 100%);
                 border: 2px solid var(--accent-color);
@@ -480,6 +493,13 @@ if HAS_FLASK:
                 <h1>🌾 IndicAgri Bot</h1>
                 <div class="subtitle">Advanced Agriculture Assistant with Voice Support</div>
                 <p>Voice-enabled agricultural guidance for Indian farmers in multiple regional languages</p>
+                <div id="mic-help" style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffeaa7; display: none;">
+                    <strong>📢 Microphone Issues?</strong><br>
+                    • Click the 🔒 icon in your browser's address bar<br>
+                    • Select "Allow" for microphone permissions<br>
+                    • Refresh the page and try again<br>
+                    • Or use <strong>http://localhost:5000</strong> instead
+                </div>
             </div>
 
             <div class="main-content">
@@ -518,16 +538,36 @@ if HAS_FLASK:
                             <div class="form-group">
                                 <label for="api-key">SarvamAI API Key (Optional):</label>
                                 <input type="password" id="api-key" class="form-control" placeholder="Enter API key for SarvamAI">
+                                <small class="text-muted">
+                                    <a href="#" onclick="showApiKeyHelp('sarvam')" style="color: var(--primary-color);">
+                                        ℹ️ How to get SarvamAI API Key?
+                                    </a>
+                                </small>
                             </div>
                             <div class="form-group">
                                 <label for="hf-token">Hugging Face Token (Optional):</label>
                                 <input type="password" id="hf-token" class="form-control" placeholder="Enter HF token">
+                                <small class="text-muted">
+                                    <a href="#" onclick="showApiKeyHelp('huggingface')" style="color: var(--primary-color);">
+                                        ℹ️ How to get Hugging Face Token?
+                                    </a>
+                                </small>
                             </div>
                         </div>
                         
                         <div class="checkbox-group">
-                            <input type="checkbox" id="use-local-model" checked>
-                            <label for="use-local-model">Use Local Model (uncheck for SarvamAI)</label>
+                            <input type="checkbox" id="use-local-model">
+                            <label for="use-local-model">Use Local Model (experimental - requires setup)</label>
+                            <small class="text-muted" style="display: block; margin-top: 5px;">
+                                ⚠️ Local models currently disabled due to dependency conflicts. SarvamAI recommended.
+                            </small>
+                        </div>
+
+                        <div class="info-box" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin-top: 15px;">
+                            <small style="color: #856404;">
+                                🔒 <strong>Security Note:</strong> API keys are stored locally in your browser and transmitted securely. 
+                                For production use, consider accessing via HTTPS. On localhost, HTTP is acceptable for development.
+                            </small>
                         </div>
                     </div>
 
@@ -594,33 +634,138 @@ if HAS_FLASK:
                 numAgentsValue.textContent = this.value;
             });
 
-            // Initialize voice recording
+            // Initialize voice recording with better browser compatibility
             async function initializeVoiceRecording() {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: {
-                            sampleRate: 16000,
-                            channelCount: 1,
-                            echoCancellation: true,
-                            noiseSuppression: true
-                        } 
-                    });
+                    // Check browser support using multiple methods (following Stack Overflow best practices)
+                    let getUserMedia = null;
                     
-                    mediaRecorder = new MediaRecorder(stream);
+                    // Modern browsers
+                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+                    } 
+                    // Older browsers with prefixes
+                    else if (navigator.getUserMedia) {
+                        getUserMedia = navigator.getUserMedia.bind(navigator);
+                    } 
+                    else if (navigator.webkitGetUserMedia) {
+                        getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
+                    } 
+                    else if (navigator.mozGetUserMedia) {
+                        getUserMedia = navigator.mozGetUserMedia.bind(navigator);
+                    }
+                    
+                    if (!getUserMedia) {
+                        throw new Error('Browser does not support microphone access. Please use Chrome 53+, Firefox 36+, or Safari 11+.');
+                    }
+
+                    // Check secure context
+                    const isSecureContext = window.isSecureContext || location.protocol === 'https:' || 
+                                          location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                    
+                    if (!isSecureContext) {
+                        throw new Error('Microphone access requires HTTPS or localhost. Please access via https:// or localhost.');
+                    }
+
+                    // Show permission request status
+                    recordingStatus.innerHTML = '<span>Requesting microphone access...</span>';
+                    recordingStatus.className = 'status-indicator status-warning';
+
+                    // Request microphone access with fallback for older browsers
+                    let stream;
+                    const constraints = { 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            sampleRate: 16000,
+                            channelCount: 1
+                        } 
+                    };
+
+                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        // Modern promise-based approach
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } else {
+                        // Legacy callback-based approach
+                        stream = await new Promise((resolve, reject) => {
+                            getUserMedia(constraints, resolve, reject);
+                        });
+                    }
+                    
+                    // Check MediaRecorder support
+                    if (!window.MediaRecorder) {
+                        throw new Error('MediaRecorder not supported. Please use Chrome 47+, Firefox 25+, or Safari 14+.');
+                    }
+
+                    // Determine best MIME type
+                    let mimeType = '';
+                    const supportedTypes = [
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/mp4',
+                        'audio/wav'
+                    ];
+                    
+                    for (const type of supportedTypes) {
+                        if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+                            mimeType = type;
+                            break;
+                        }
+                    }
+                    
+                    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
                     
                     mediaRecorder.ondataavailable = event => {
-                        audioChunks.push(event.data);
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
                     };
                     
                     mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        // Stop all tracks to release microphone
+                        stream.getTracks().forEach(track => track.stop());
+                        
+                        const audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/wav' });
                         audioChunks = [];
                         await processAudio(audioBlob);
                     };
+
+                    mediaRecorder.onerror = function(event) {
+                        console.error('MediaRecorder error:', event.error);
+                        showError('Recording error: ' + event.error.message);
+                        resetRecordingState();
+                    };
+
+                    // Success - update status
+                    recordingStatus.innerHTML = '<span>Ready to Record</span>';
+                    recordingStatus.className = 'status-indicator status-ready';
+                    showSuccess('Microphone access granted. Ready to record!');
                     
                 } catch (error) {
                     console.error('Error initializing voice recording:', error);
-                    alert('Error accessing microphone. Please check permissions.');
+                    let errorMessage = 'Microphone access failed: ';
+                    
+                    if (error.name === 'NotAllowedError') {
+                        errorMessage += 'Permission denied. Please allow microphone access in your browser and refresh the page.';
+                    } else if (error.name === 'NotFoundError') {
+                        errorMessage += 'No microphone found. Please connect a microphone and try again.';
+                    } else if (error.name === 'NotSupportedError') {
+                        errorMessage += 'Microphone not supported by your browser. Please use Chrome 53+, Firefox 36+, or Safari 11+.';
+                    } else if (error.name === 'SecurityError') {
+                        errorMessage += 'Security error. Please access via HTTPS or localhost.';
+                    } else if (error.message.includes('HTTPS') || error.message.includes('localhost')) {
+                        errorMessage += error.message;
+                    } else {
+                        errorMessage += error.message || 'Unknown error occurred.';
+                    }
+                    
+                    // Add helpful suggestions without problematic escaping
+                    errorMessage += ' Troubleshooting: Make sure you are using HTTPS or localhost, check browser permissions for microphone, try refreshing the page, use Chrome, Firefox, or Safari latest version.';
+                    
+                    showError(errorMessage);
+                    recordingStatus.innerHTML = '<span>Microphone unavailable</span>';
+                    recordingStatus.className = 'status-indicator status-error';
                 }
             }
 
@@ -628,6 +773,11 @@ if HAS_FLASK:
             recordButton.addEventListener('click', async function() {
                 if (!mediaRecorder) {
                     await initializeVoiceRecording();
+                    // If initialization still failed, don't proceed
+                    if (!mediaRecorder) {
+                        showError('Voice recording initialization failed. Please check the troubleshooting steps above.');
+                        return;
+                    }
                 }
                 
                 if (!isRecording && !isProcessing) {
@@ -635,14 +785,20 @@ if HAS_FLASK:
                 } else if (isRecording) {
                     stopRecording();
                 }
+                }
             });
 
             function startRecording() {
+                if (!mediaRecorder) {
+                    showError('Microphone not initialized. Please check browser compatibility and try again.');
+                    return;
+                }
+                
                 isRecording = true;
                 recordButton.classList.add('recording');
-                recordIcon.textContent = '⏹️';
+                recordIcon.textContent = 'Stop';
                 recordText.textContent = 'Stop Recording';
-                recordingStatus.innerHTML = '<span>🔴</span> Recording...';
+                recordingStatus.innerHTML = '<span>Recording...</span>';
                 recordingStatus.className = 'status-indicator status-recording';
                 
                 audioChunks = [];
@@ -650,13 +806,19 @@ if HAS_FLASK:
             }
 
             function stopRecording() {
+                if (!mediaRecorder) {
+                    showError('Microphone not initialized. Cannot stop recording.');
+                    resetRecordingState();
+                    return;
+                }
+                
                 isRecording = false;
                 isProcessing = true;
                 recordButton.classList.remove('recording');
                 recordButton.classList.add('processing');
-                recordIcon.textContent = '⏳';
+                recordIcon.textContent = 'Processing';
                 recordText.textContent = 'Processing...';
-                recordingStatus.innerHTML = '<span>🟡</span> Processing Audio...';
+                recordingStatus.innerHTML = '<span>Processing Audio...</span>';
                 recordingStatus.className = 'status-indicator status-processing';
                 
                 mediaRecorder.stop();
@@ -703,9 +865,9 @@ if HAS_FLASK:
                 isRecording = false;
                 isProcessing = false;
                 recordButton.classList.remove('recording', 'processing');
-                recordIcon.textContent = '🎤';
+                recordIcon.textContent = 'Mic';
                 recordText.textContent = 'Start Recording';
-                recordingStatus.innerHTML = '<span>🟢</span> Ready to Record';
+                recordingStatus.innerHTML = '<span>Ready to Record</span>';
                 recordingStatus.className = 'status-indicator status-ready';
             }
 
@@ -758,7 +920,7 @@ if HAS_FLASK:
 
             function showError(message) {
                 console.error('Error:', message);
-                alert(message); // Simple alert for now
+                alert(message);
             }
 
             // Allow Enter key to send query (Ctrl+Enter for new line)
@@ -769,10 +931,185 @@ if HAS_FLASK:
                 }
             });
 
+            // API Key Help Functions
+            function showApiKeyHelp(service) {
+                let title, content;
+                
+                if (service === 'sarvam') {
+                    title = "How to get SarvamAI API Key";
+                    content = `
+                        <div style="text-align: left;">
+                            <h4>SarvamAI API Key Setup:</h4>
+                            <ol>
+                                <li>Visit <a href="https://www.sarvam.ai/" target="_blank">sarvam.ai</a></li>
+                                <li>Click on "Sign Up" or "Login" if you already have an account</li>
+                                <li>Complete the registration process</li>
+                                <li>Navigate to your dashboard/API section</li>
+                                <li>Generate a new API key</li>
+                                <li>Copy the API key and paste it in the field above</li>
+                            </ol>
+                            <p><strong>Note:</strong> SarvamAI provides excellent voice transcription for Indian languages
+                            with high accuracy and no local setup required. This is the recommended approach for IndicAgri Bot.</p>
+                        </div>
+                    `;
+                } else if (service === 'huggingface') {
+                    title = "How to get Hugging Face Token";
+                    content = `
+                        <div style="text-align: left;">
+                            <h4>Hugging Face Token Setup:</h4>
+                            <ol>
+                                <li>Visit <a href="https://huggingface.co/" target="_blank">huggingface.co</a></li>
+                                <li>Click "Sign Up" or "Login" if you have an account</li>
+                                <li>Go to your profile → Settings → Access Tokens</li>
+                                <li>Click "New token"</li>
+                                <li>Choose "Read" permissions (sufficient for most models)</li>
+                                <li>Give your token a name (e.g., "IndicAgri Bot")</li>
+                                <li>Copy the generated token and paste it above</li>
+                            </ol>
+                            <p><strong>Note:</strong> This token allows access to private/gated Hugging Face models. 
+                            Many models work without a token.</p>
+                        </div>
+                    `;
+                }
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                `;
+                
+                const modalContent = document.createElement('div');
+                modalContent.style.cssText = `
+                    background: white;
+                    padding: 30px;
+                    border-radius: 15px;
+                    max-width: 600px;
+                    max-height: 80%;
+                    overflow-y: auto;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                    position: relative;
+                `;
+                
+                modalContent.innerHTML = `
+                    <button onclick="this.closest('[style*=position]').remove()" 
+                            style="position: absolute; top: 10px; right: 15px; background: none; 
+                                   border: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
+                    <h3 style="color: var(--primary-color); margin-bottom: 20px;">${title}</h3>
+                    ${content}
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="this.closest('[style*=position]').remove()" 
+                                style="background: var(--primary-color); color: white; border: none; 
+                                       padding: 10px 20px; border-radius: 5px; cursor: pointer;">Close</button>
+                    </div>
+                `;
+                
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+                
+                // Close on background click
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                });
+            }
+
             // Initialize on page load
             document.addEventListener('DOMContentLoaded', function() {
                 console.log('IndicAgri Bot initialized');
+                
+                // Check browser compatibility first
+                checkBrowserCompatibility();
+                
+                // Load saved API keys from localStorage
+                const savedSarvamKey = localStorage.getItem('sarvam_api_key');
+                const savedHfToken = localStorage.getItem('hf_token');
+                
+                if (savedSarvamKey) {
+                    document.getElementById('api-key').value = savedSarvamKey;
+                }
+                if (savedHfToken) {
+                    document.getElementById('hf-token').value = savedHfToken;
+                }
+                
+                // Initialize voice recording (request microphone access on first click)
+                // No automatic initialization to avoid permission prompt on page load
+                
+                // Save API keys when they change
+                document.getElementById('api-key').addEventListener('change', function() {
+                    if (this.value) {
+                        localStorage.setItem('sarvam_api_key', this.value);
+                    } else {
+                        localStorage.removeItem('sarvam_api_key');
+                    }
+                });
+                
+                document.getElementById('hf-token').addEventListener('change', function() {
+                    if (this.value) {
+                        localStorage.setItem('hf_token', this.value);
+                    } else {
+                        localStorage.removeItem('hf_token');
+                    }
+                });
             });
+
+            function checkBrowserCompatibility() {
+                const isSecureContext = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                
+                if (!isSecureContext) {
+                    showWarning('WARNING: For voice features, please access via HTTPS or localhost. Current URL: ' + location.href);
+                    recordingStatus.innerHTML = '<span>HTTPS required for voice</span>';
+                    recordingStatus.className = 'status-indicator status-warning';
+                    return;
+                }
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showWarning('WARNING: Your browser does not support microphone access. Please use Chrome 53+, Firefox 36+, or Safari 11+.');
+                    recordingStatus.innerHTML = '<span>Browser not supported</span>';
+                    recordingStatus.className = 'status-indicator status-error';
+                    return;
+                }
+
+                if (!window.MediaRecorder) {
+                    showWarning('WARNING: Your browser does not support audio recording. Please use Chrome 47+, Firefox 25+, or Safari 14+.');
+                    recordingStatus.innerHTML = '<span>Recording not supported</span>';
+                    recordingStatus.className = 'status-indicator status-error';
+                    return;
+                }
+
+                // Browser is compatible
+                recordingStatus.innerHTML = '<span>Click to start recording</span>';
+                recordingStatus.className = 'status-indicator status-ready';
+            }
+
+            function showWarning(message) {
+                console.warn(message);
+                // Create a subtle warning banner
+                const warningDiv = document.createElement('div');
+                warningDiv.style.cssText = `
+                    background: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    color: #856404;
+                    padding: 10px;
+                    margin: 10px 0;
+                    border-radius: 5px;
+                    font-size: 14px;
+                `;
+                warningDiv.innerHTML = message;
+                
+                // Add to top of container
+                const container = document.querySelector('.container');
+                container.insertBefore(warningDiv, container.firstChild);
+            }
         </script>
     </body>
     </html>

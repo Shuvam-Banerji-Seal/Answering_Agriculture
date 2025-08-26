@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced Agriculture Bot Searcher - Web UI with RAG Integration
+IndicAgri Bot - Web UI with RAG Integration
 A comprehensive Flask web interface combining embeddings-based retrieval with web search
 """
 
@@ -81,7 +81,7 @@ if HAS_FLASK:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>🌾 Enhanced Agriculture Bot - RAG + Web Search</title>
+        <title>🌾 IndicAgri Bot - RAG + Web Search</title>
         <style>
             :root {
                 --primary-color: #2e7d32;
@@ -486,7 +486,7 @@ if HAS_FLASK:
     </head>
     <body>
         <div class="header">
-            <h1>🌾 Enhanced Agriculture Bot</h1>
+            <h1>🌾 IndicAgri Bot</h1>
             <p>Advanced RAG System with Database + Web Search Integration</p>
             
             <div class="mode-toggle">
@@ -1095,7 +1095,7 @@ if HAS_FLASK:
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
         
-        print(f"Starting Enhanced Agriculture Bot Web UI...")
+        print(f"Starting IndicAgri Bot Web UI...")
         print(f"Server will be available at: http://{host}:{port}")
         print(f"RAG System Available: {HAS_RAG_SYSTEM}")
         print(f"Legacy Chatbot Available: {HAS_LEGACY_CHATBOT}")

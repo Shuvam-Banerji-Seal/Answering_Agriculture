@@ -187,4 +187,4 @@ NeMo/
 autonomous_indian_agriculture_complete.jsonl
 
 bm25_line/agriculture_bm25_index.tar.xz
-bm25_line/agriculture_bm25_index
+agriculture_embeddings/
