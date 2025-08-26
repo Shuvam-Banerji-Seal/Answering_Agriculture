@@ -1,10 +1,13 @@
 import torch
 import os 
-# from dotenv import load_dotenv
+
 from sarvamai import SarvamAI
 import re
-# from IndicTransToolkit.processor import IndicProcessor
 import subprocess
+import os
+from gtts import gTTS
+from pydub import AudioSegment
+from tqdm import tqdm
 
 def speech_to_text_bharat(model,audio_path):
     model.cur_decoder = "ctc"
@@ -84,5 +87,44 @@ def speech_to_text(audio_path,sarvam_api):
     match = re.search(pattern,str(response), re.DOTALL)
     transcript_text = match.group(1)
     return transcript_text
+
+
+
+'''-----below code is for text to voice ----'''
+gtt_lang = {
+    "Bengali": "bn",
+    "Gujarati": "gu",
+    "Hindi": "hi",
+    "Kannada": "kn",
+    "Malayalam": "ml",
+    "Marathi": "mr",
+    "Nepali": "ne",
+    "Punjabi (Gurmukhi)": "pa",
+    "Sinhala": "si",
+    "Tamil": "ta",
+    "Telugu": "te",
+    "Urdu": "ur"
+}
+
+'''------------> below gen audio language code should be in from above dictionary bhaiya '''
+
+def split_text(text, max_chunk=200):
+    return [text[i:i+max_chunk] for i in range(0, len(text), max_chunk)]
+
+def gen_audio(text, lang, filename):
+    chunks = split_text(text)
+    combined = AudioSegment.empty()
+
+   
+    for i in tqdm(range(len(chunks)), desc="Processing chunks", unit="chunk"):
+        chunk = chunks[i]
+        tts = gTTS(text=chunk, lang=lang)
+        temp_file = f"temp_{i}.mp3"
+        tts.save(temp_file)
+
+        combined += AudioSegment.from_mp3(temp_file)
+        os.remove(temp_file)
+
+    combined.export(filename, format="mp3")
 
     
