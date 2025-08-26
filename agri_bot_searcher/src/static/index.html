@@ -3,128 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌾 IndicAgri Bot - Voice & Text Interface</title>
+    <title>🌾 IndicAgri Bot - Enhanced Voice & Text Interface</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌾</text></svg>">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🌾 IndicAgri Bot</h1>
-            <p class="subtitle">Advanced Agricultural Assistant with Voice Support</p>
-            <p>Ask questions about farming, crops, soil, pests, and sustainable agriculture in your preferred language</p>
+            <p class="subtitle">Advanced Agricultural Assistant with Enhanced RAG & Voice Support</p>
+            <p>Ask questions about farming, crops, soil, pests, and sustainable agriculture with intelligent multi-agent search</p>
         </div>
 
         <div class="main-content">
+            <!-- Enhanced RAG Configuration Panel -->
             <div class="config-panel">
-                <h3>⚙️ Configuration</h3>
-                <div class="form-group">
-                    <label for="num-agents">Number of Agents:</label>
-                    <div class="slider-container">
-                        <input type="range" id="num-agents" class="form-control" min="1" max="5" value="2">
-                        <span id="num-agents-value" class="slider-value">2</span>
+                <h3>⚙️ Enhanced RAG Configuration</h3>
+                
+                <div class="rag-settings">
+                    <h4>Search Settings</h4>
+                    <div class="search-toggles">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enable-database-search" checked>
+                            <span class="toggle-slider"></span>
+                            Database Search
+                        </label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enable-web-search" checked>
+                            <span class="toggle-slider"></span>
+                            Web Search
+                        </label>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="ollama-port">Ollama Base Port:</label>
-                    <input type="number" id="ollama-port" class="form-control" value="11434" min="1024" max="65535">
+                    
+                    <div class="form-group">
+                        <label for="num-sub-queries">Sub-queries to Generate:</label>
+                        <div class="slider-container">
+                            <input type="range" id="num-sub-queries" class="form-control" min="1" max="5" value="3">
+                            <span id="num-sub-queries-value" class="slider-value">3</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="db-chunks-per-query">Database Chunks per Query:</label>
+                        <div class="slider-container">
+                            <input type="range" id="db-chunks-per-query" class="form-control" min="1" max="10" value="3">
+                            <span id="db-chunks-per-query-value" class="slider-value">3</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="web-results-per-query">Web Results per Query:</label>
+                        <div class="slider-container">
+                            <input type="range" id="web-results-per-query" class="form-control" min="1" max="10" value="3">
+                            <span id="web-results-per-query-value" class="slider-value">3</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="synthesis-model">Synthesis Model:</label>
+                        <select id="synthesis-model" class="form-control">
+                            <option value="llama3.2">Llama 3.2</option>
+                        </select>
+                        <button id="refresh-models" class="btn btn-secondary">🔄 Refresh Models</button>
+                    </div>
                 </div>
             </div>
 
+            <!-- Voice Input Panel -->
             <div class="voice-panel">
                 <h3>🎤 Voice Input</h3>
+                <div class="voice-controls">
+                    <button id="record-btn" class="btn btn-primary">🎤 Start Recording</button>
+                    <span id="recording-status" class="recording-status"></span>
+                </div>
                 
                 <div class="voice-settings">
-                    <h4>Voice Settings</h4>
                     <div class="form-group">
-                        <label for="language-select">Select Language:</label>
-                        <select id="language-select" class="form-control language-selector">
-                            <option value="hin_Deva" selected>Hindi</option>
-                            <option value="ben_Beng">Bengali</option>
-                            <option value="guj_Gujr">Gujarati</option>
-                            <option value="kan_Knda">Kannada</option>
-                            <option value="mal_Mlym">Malayalam</option>
-                            <option value="mar_Deva">Marathi</option>
-                            <option value="ory_Orya">Odia</option>
-                            <option value="pan_Guru">Punjabi</option>
-                            <option value="urd_Arab">Urdu</option>
-                            <option value="eng_Latn">English</option>
+                        <label for="language-select">Language:</label>
+                        <select id="language-select" class="form-control">
+                            <option value="en">English</option>
+                            <option value="hi">Hindi</option>
+                            <option value="bn">Bengali</option>
+                            <option value="te">Telugu</option>
+                            <option value="ta">Tamil</option>
+                            <option value="mr">Marathi</option>
+                            <option value="gu">Gujarati</option>
+                            <option value="kn">Kannada</option>
+                            <option value="ml">Malayalam</option>
+                            <option value="pa">Punjabi</option>
+                            <option value="or">Odia</option>
+                            <option value="as">Assamese</option>
                         </select>
                     </div>
                     
-                    <form id="api-form">
-                        <div class="settings-grid">
-                            <div class="form-group">
-                                <label for="api-key">SarvamAI API Key (Optional):</label>
-                                <input type="password" id="api-key" class="form-control" placeholder="Enter API key for SarvamAI">
-                                <small class="text-muted">
-                                    <a href="#" onclick="showApiKeyHelp('sarvam')" style="color: var(--primary-color);">
-                                        ℹ️ How to get SarvamAI API Key?
-                                    </a>
-                                </small>
-                            </div>
-                            <div class="form-group">
-                                <label for="hf-token">Hugging Face Token (Optional):</label>
-                                <input type="password" id="hf-token" class="form-control" placeholder="Enter HF token">
-                                <small class="text-muted">
-                                    <a href="#" onclick="showApiKeyHelp('huggingface')" style="color: var(--primary-color);">
-                                        ℹ️ How to get Hugging Face Token?
-                                    </a>
-                                </small>
-                            </div>
-                        </div>
-                    </form>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="use-local-model" checked>
+                            Use Local Voice Model (Faster)
+                        </label>
+                    </div>
                     
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="use-local-model">
-                        <label for="use-local-model">Use Local Model (experimental - requires setup)</label>
-                        <small class="text-muted" style="display: block; margin-top: 5px;">
-                            ⚠️ Local models currently disabled due to dependency conflicts. SarvamAI recommended.
-                        </small>
-                    </div>
-
-                    <div class="info-box" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin-top: 15px;">
-                        <small style="color: #856404;">
-                            🔒 <strong>Security Note:</strong> API keys are stored locally in your browser and transmitted securely. 
-                            For production use, consider accessing via HTTPS. On localhost, HTTP is acceptable for development.
-                        </small>
+                    <div class="api-settings">
+                        <div class="form-group">
+                            <label for="api-key">SarvamAI API Key (Optional):</label>
+                            <input type="text" id="api-key" class="form-control" placeholder="Enter your SarvamAI API key" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="hf-token">HuggingFace Token (Optional):</label>
+                            <input type="text" id="hf-token" class="form-control" placeholder="Enter your HuggingFace token" autocomplete="off">
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="voice-controls">
-                    <button id="record-button" class="record-button">
-                        <span id="record-icon">🎤</span>
-                        <span id="record-text">Start Recording</span>
-                    </button>
-                    <div id="recording-status" class="status-indicator status-ready">
-                        <span>🟢</span> Ready to Record
+            <!-- Text Input Panel -->
+            <div class="input-panel">
+                <h3>💬 Text Input</h3>
+                <div class="input-container">
+                    <textarea id="user-input" class="form-control" rows="4" 
+                              placeholder="Ask about farming techniques, crop diseases, soil management, sustainable agriculture practices, or any agriculture-related question..."></textarea>
+                    <button id="send-btn" class="btn btn-success">Send Query</button>
+                </div>
+            </div>
+
+            <!-- Response Panel with Tabs -->
+            <div class="response-panel">
+                <h3>📋 Response</h3>
+                
+                <!-- Tab Navigation -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="response">Response</button>
+                    <button class="tab-btn" data-tab="pipeline">Pipeline Info</button>
+                    <button class="tab-btn" data-tab="markdown">Markdown</button>
+                    <button class="tab-btn" data-tab="citations">Citations</button>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <div id="response-pane" class="tab-pane active">
+                        <div id="response-content" class="response-content">
+                            <p class="placeholder-text">Your enhanced search results will appear here...</p>
+                        </div>
+                    </div>
+                    
+                    <div id="pipeline-pane" class="tab-pane">
+                        <div id="pipeline-info" class="pipeline-info">
+                            <p class="placeholder-text">Pipeline processing information will appear here...</p>
+                        </div>
+                    </div>
+                    
+                    <div id="markdown-pane" class="tab-pane">
+                        <div class="markdown-controls">
+                            <button id="download-markdown" class="btn btn-secondary">📥 Download Markdown</button>
+                        </div>
+                        <div id="markdown-content" class="markdown-content">
+                            <p class="placeholder-text">Markdown report will appear here...</p>
+                        </div>
+                    </div>
+                    
+                    <div id="citations-pane" class="tab-pane">
+                        <div id="citations-content" class="citations-content">
+                            <p class="placeholder-text">Source citations will appear here...</p>
+                        </div>
                     </div>
                 </div>
-
-                <div class="transcription-display">
-                    <h4>📝 Transcription Results</h4>
-                    <div id="original-text" class="transcribed-text">
-                        <strong>Original:</strong> <span id="original-content">No transcription yet</span>
-                    </div>
-                    <div id="translated-text" class="transcribed-text">
-                        <strong>English:</strong> <span id="translated-content">No translation yet</span>
-                    </div>
+                
+                <!-- Loading Indicator -->
+                <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Processing your query with enhanced multi-agent search...</p>
                 </div>
             </div>
         </div>
 
-        <div class="query-section">
-            <h3>💬 Ask Your Question</h3>
-            <div class="query-input-group">
-                <textarea id="query-input" class="query-input" placeholder="Type your agricultural question here or use voice input above..."></textarea>
-                <button id="send-button" class="send-button">Send Query</button>
+        <!-- Status Panel -->
+        <div class="status-panel">
+            <h3>📊 System Status</h3>
+            <div class="status-grid">
+                <div class="status-item">
+                    <span class="status-label">Enhanced RAG:</span>
+                    <span id="rag-status" class="status-value">Checking...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Voice Transcription:</span>
+                    <span id="voice-status" class="status-value">Checking...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Models:</span>
+                    <span id="models-status" class="status-value">Checking...</span>
+                </div>
             </div>
+            <button id="refresh-status" class="btn btn-secondary">🔄 Refresh Status</button>
         </div>
 
-        <div class="response-section">
-            <h3>🌱 IndicAgri Response</h3>
-            <div id="response-content" class="response-content">
-                Welcome to IndicAgri Bot! Ask any agriculture-related question in text or voice.
-            </div>
+        <!-- Footer -->
+        <div class="footer">
+            <p>🌾 <strong>IndicAgri Bot</strong> - Powered by Enhanced RAG with Multi-Agent Search</p>
+            <p>Combines local agricultural database with real-time web search for comprehensive answers</p>
         </div>
     </div>
 

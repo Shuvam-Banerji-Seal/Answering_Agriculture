@@ -46,10 +46,10 @@ fi
 cd "$AGRI_BOT_PATH"
 
 # Check available UI modes
-if [ "$VOICE_ENABLED" = "true" ] && [ -f "src/simple_voice_web_ui.py" ]; then
+if [ "$VOICE_ENABLED" = "true" ] && [ -f "src/enhanced_voice_web_ui.py" ]; then
     echo -e "${GREEN}🎤 Starting IndicAgri Bot with Voice Support${NC}"
     echo -e "${BLUE}Access the bot at: http://localhost:5000${NC}"
-    python3 src/simple_voice_web_ui.py
+    python3 src/enhanced_voice_web_ui.py
 elif [ "$RAG_ENABLED" = "true" ] && [ -f "src/enhanced_web_ui.py" ]; then
     echo -e "${GREEN}🚀 Starting IndicAgri Bot with RAG System${NC}"
     echo -e "${BLUE}Access the bot at: http://localhost:5000${NC}"

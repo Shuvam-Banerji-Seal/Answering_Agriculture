@@ -25,14 +25,109 @@ from pathlib import Path
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
+# Add agri_bot directory to path for voice utilities
+agri_bot_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'agri_bot')
+sys.path.append(agri_bot_path)
+
 if HAS_FLASK:
     from agriculture_chatbot import AgricultureChatbot
     from indicagri_voice_integration import IndicAgriVoiceTranscriber, get_supported_languages
     
+    # Import Enhanced RAG System
+    try:
+        from enhanced_rag_system import EnhancedRAGSystem
+        HAS_ENHANCED_RAG = True
+    except ImportError as e:
+        logging.warning(f"Enhanced RAG System not available: {e}")
+        HAS_ENHANCED_RAG = False
+    
+    # Import agri_bot voice utilities with dynamic loading
+    HAS_AGRI_BOT_VOICE = False
+    sarvam_lang_codes = {}
+    gtt_lang = {}
+    
+    def import_agri_bot_utilities():
+        """Dynamically import agri_bot utilities"""
+        global HAS_AGRI_BOT_VOICE, sarvam_lang_codes, gtt_lang
+        
+        try:
+            # Add agri_bot directory to path
+            agri_bot_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'agri_bot')
+            if os.path.exists(agri_bot_path) and agri_bot_path not in sys.path:
+                sys.path.insert(0, agri_bot_path)
+            
+            # Import utilities without requiring huggingface login
+            import utility
+            
+            # Try to import new_bot, but handle huggingface token errors gracefully
+            try:
+                import new_bot
+                sarvam_lang_codes = getattr(new_bot, 'sarvam_lang_codes', {})
+            except Exception as hf_error:
+                logging.warning(f"Could not import new_bot (likely HF token issue): {hf_error}")
+                # Define fallback language codes
+                sarvam_lang_codes = {
+                    "Bengali": "bn-IN",
+                    "Hindi": "hi-IN", 
+                    "Marathi": "mr-IN",
+                    "Tamil": "ta-IN",
+                    "Telugu": "te-IN",
+                    "Gujarati": "gu-IN",
+                    "Kannada": "kn-IN",
+                    "Malayalam": "ml-IN",
+                    "Punjabi": "pa-IN",
+                    "Urdu": "ur-IN",
+                    "English": "en-IN"
+                }
+                new_bot = None
+            
+            HAS_AGRI_BOT_VOICE = True
+            gtt_lang = getattr(utility, 'gtt_lang', {})
+            
+            logging.info("✅ Agri_bot voice utilities imported successfully")
+            return utility, new_bot
+            
+        except Exception as e:
+            logging.warning(f"Failed to import agri_bot utilities: {e}")
+            HAS_AGRI_BOT_VOICE = False
+            return None, None
+    
+    # Try to import agri_bot utilities at startup
+    agri_bot_utility, agri_bot_main = import_agri_bot_utilities()
+    
     # Initialize voice transcriber
     voice_transcriber = IndicAgriVoiceTranscriber()
     
-    app = Flask(__name__)
+    # Initialize Enhanced RAG System with graceful fallback
+    enhanced_rag_system = None
+    if HAS_ENHANCED_RAG:
+        try:
+            embeddings_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'agriculture_embeddings')
+            
+            # Check if embeddings directory exists
+            if not os.path.exists(embeddings_dir):
+                logging.warning(f"Embeddings directory not found at {embeddings_dir}")
+                enhanced_rag_system = None
+            else:
+                enhanced_rag_system = EnhancedRAGSystem(
+                    embeddings_dir=embeddings_dir,
+                    ollama_host="http://localhost:11434"
+                )
+                logging.info("Enhanced RAG System initialized successfully")
+        except ImportError as e:
+            logging.warning(f"Enhanced RAG System dependencies missing: {e}")
+            enhanced_rag_system = None
+        except FileNotFoundError as e:
+            logging.warning(f"Enhanced RAG System embeddings not found: {e}")
+            enhanced_rag_system = None
+        except Exception as e:
+            logging.error(f"Failed to initialize Enhanced RAG System: {e}")
+            logging.info("System will continue with web-only search")
+            enhanced_rag_system = None
+    
+    # Configure Flask app to serve static files from src/static
+    static_folder = os.path.join(os.path.dirname(__file__), 'static')
+    app = Flask(__name__, static_folder=static_folder, static_url_path='/static')
     CORS(app)  # Enable CORS for all domains
     
     # Initialize chatbot
@@ -48,26 +143,97 @@ if HAS_FLASK:
             chatbot = AgricultureChatbot(base_port=base_port, num_agents=num_agents)
         return chatbot
     
-    def process_audio_file(audio_path, language_code, use_local_model=True, api_key=None, hf_token=None):
-        """Process audio file using IndicAgri voice transcription"""
+    def process_audio_file_enhanced(audio_path, language_code='hi-IN', use_local_model=False, api_key=None, hf_token=None):
+        """Enhanced audio processing using both agri_bot and agri_bot_searcher utilities"""
         try:
-            if voice_transcriber.is_available() or api_key:
-                # Use the integrated IndicAgri voice transcription
+            logging.info(f"🎤 Processing audio file: {audio_path}, language: {language_code}")
+            
+            # Check if we have SarvamAI API key
+            sarvam_api_key = api_key or os.getenv('SARVAM_API_KEY') or os.getenv('sarvam_api')
+            
+            # Try to use agri_bot utilities if available
+            if HAS_AGRI_BOT_VOICE and sarvam_api_key and agri_bot_utility:
+                try:
+                    logging.info("🔄 Using agri_bot voice utilities with SarvamAI")
+                    
+                    # Convert audio to mono channel for processing
+                    mono_audio_path = agri_bot_utility.mono_channel(audio_path)
+                    
+                    # Use SarvamAI for speech-to-text and translation
+                    transcript = agri_bot_utility.speech_to_text(audio_path=mono_audio_path, sarvam_api=sarvam_api_key)
+                    logging.info(f"📝 Transcript: {transcript}")
+                    
+                    # Detect language and translate if needed
+                    if language_code and language_code != 'en-IN':
+                        # Try to translate to English for processing
+                        try:
+                            english_text = agri_bot_utility.text_to_text(
+                                text=transcript,
+                                sarvam_api=sarvam_api_key,
+                                src_lan=language_code,
+                                tg_lan='en-IN'
+                            )
+                            logging.info(f"🔄 Translated to English: {english_text}")
+                        except Exception as e:
+                            logging.warning(f"Translation failed: {e}, using original text")
+                            english_text = transcript
+                    else:
+                        english_text = transcript
+                    
+                    # Clean up temporary file
+                    if os.path.exists(mono_audio_path) and mono_audio_path != audio_path:
+                        os.remove(mono_audio_path)
+                    
+                    return transcript, english_text
+                    
+                except Exception as e:
+                    logging.error(f"Agri_bot voice processing failed: {e}")
+                    # Fall back to original method
+            
+            # Fallback to original IndicAgri voice transcription
+            if voice_transcriber.is_available() or sarvam_api_key:
+                logging.info("🔄 Falling back to IndicAgri voice transcription")
                 original_text, english_text = voice_transcriber.transcribe_audio(
                     audio_path=audio_path,
                     language_code=language_code,
                     use_local_model=use_local_model,
-                    api_key=api_key,
+                    api_key=sarvam_api_key,
                     hf_token=hf_token
                 )
                 return original_text, english_text
             else:
                 error_msg = "Voice transcription requires SarvamAI API key. Please enter your API key in the settings."
+                logging.warning(error_msg)
                 return error_msg, error_msg
+                
         except Exception as e:
             logging.error(f"Audio processing error: {e}")
             error_msg = f"Error processing audio: {str(e)}"
             return error_msg, error_msg
+
+    def process_audio_file(audio_path, language_code, use_local_model=True, api_key=None, hf_token=None):
+        """Legacy audio processing function - now calls enhanced version"""
+        return process_audio_file_enhanced(audio_path, language_code, use_local_model, api_key, hf_token)
+
+    def generate_audio_response(text, language='hi', output_filename='response.mp3'):
+        """Generate audio response using agri_bot utilities"""
+        try:
+            if HAS_AGRI_BOT_VOICE and agri_bot_utility and hasattr(agri_bot_utility, 'gen_audio'):
+                # Check if language is supported
+                supported_langs = getattr(agri_bot_utility, 'gtt_lang', {}).values()
+                if language in supported_langs:
+                    logging.info(f"🔊 Generating audio for language: {language}")
+                    output_path = os.path.join(tempfile.gettempdir(), output_filename)
+                    agri_bot_utility.gen_audio(text=text, lang=language, filename=output_path)
+                    return output_path
+                else:
+                    logging.warning(f"Language {language} not supported for audio generation")
+            else:
+                logging.warning(f"Audio generation not available")
+            return None
+        except Exception as e:
+            logging.error(f"Audio generation failed: {e}")
+            return None
 
     # Enhanced HTML template with IndicAgri branding and voice capabilities
     HTML_TEMPLATE = """
@@ -1117,21 +1283,58 @@ if HAS_FLASK:
 
     @app.route('/')
     def index():
-        """Render the main interface"""
-        return render_template_string(HTML_TEMPLATE, languages=LANGUAGE_MAPPINGS)
+        """Serve the enhanced static interface"""
+        try:
+            static_file_path = os.path.join(app.static_folder, 'index.html')
+            with open(static_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return content
+        except FileNotFoundError:
+            return """
+            <h1>IndicAgri Bot - Setup Required</h1>
+            <p>Static files not found. Please ensure the enhanced UI files are present in the static folder.</p>
+            <p>Expected location: {}</p>
+            """.format(static_file_path), 404
 
     @app.route('/transcribe', methods=['POST'])
     def transcribe():
-        """Handle voice transcription requests"""
+        """Handle voice transcription requests with enhanced processing"""
         try:
             if 'audio' not in request.files:
                 return jsonify({'success': False, 'error': 'No audio file provided'})
             
             audio_file = request.files['audio']
-            language_code = request.form.get('language', 'hin_Deva')
-            use_local_model = request.form.get('use_local_model', 'true').lower() == 'true'
+            language_code = request.form.get('language', 'hi-IN')
+            use_local_model = request.form.get('use_local_model', 'false').lower() == 'true'
             api_key = request.form.get('api_key', '')
             hf_token = request.form.get('hf_token', '')
+            
+            logging.info(f"🎤 Transcription request - Language: {language_code}, Local model: {use_local_model}")
+            
+            # Handle language code mapping
+            # Map from frontend language codes to SarvamAI language codes
+            language_mapping = {
+                'bn': 'bn-IN',  # Bengali
+                'hi': 'hi-IN',  # Hindi
+                'mr': 'mr-IN',  # Marathi
+                'ta': 'ta-IN',  # Tamil
+                'te': 'te-IN',  # Telugu
+                'gu': 'gu-IN',  # Gujarati
+                'kn': 'kn-IN',  # Kannada
+                'ml': 'ml-IN',  # Malayalam
+                'pa': 'pa-IN',  # Punjabi
+                'ur': 'ur-IN',  # Urdu
+                'en': 'en-IN',  # English
+            }
+            
+            # Convert language code if needed
+            if language_code in language_mapping:
+                sarvam_language_code = language_mapping[language_code]
+            elif language_code in language_mapping.values():
+                sarvam_language_code = language_code
+            else:
+                logging.warning(f"Unknown language code: {language_code}, using Hindi as fallback")
+                sarvam_language_code = 'hi-IN'
             
             # Save uploaded audio to temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
@@ -1139,20 +1342,31 @@ if HAS_FLASK:
                 temp_audio_path = tmp_file.name
             
             try:
-                # Process audio using IndicAgri voice transcription
-                original_text, english_text = process_audio_file(
+                # Process audio using enhanced processing
+                original_text, english_text = process_audio_file_enhanced(
                     audio_path=temp_audio_path,
-                    language_code=language_code,
+                    language_code=sarvam_language_code,
                     use_local_model=use_local_model,
                     api_key=api_key if api_key else None,
                     hf_token=hf_token if hf_token else None
                 )
                 
-                return jsonify({
+                logging.info(f"📝 Transcription successful - Original: {original_text[:100]}...")
+                
+                response_data = {
                     'success': True,
-                    'original': original_text,
-                    'english': english_text
-                })
+                    'original_text': original_text,
+                    'english_text': english_text,
+                    'language_code': sarvam_language_code,
+                    'detected_language': language_code,
+                    'transcription_method': 'agri_bot_enhanced' if HAS_AGRI_BOT_VOICE else 'indicagri_voice'
+                }
+                
+                # Add language information if available
+                if HAS_AGRI_BOT_VOICE and sarvam_lang_codes:
+                    response_data['supported_languages'] = list(sarvam_lang_codes.keys())
+                
+                return jsonify(response_data)
                 
             finally:
                 # Clean up temporary file
@@ -1163,48 +1377,336 @@ if HAS_FLASK:
                     
         except Exception as e:
             logging.error(f"Transcription error: {e}")
+            return jsonify({
+                'success': False, 
+                'error': str(e),
+                'transcription_method': 'error'
+            })
+
+    @app.route('/voice/languages', methods=['GET'])
+    def get_voice_languages():
+        """Get supported voice languages"""
+        try:
+            languages = {
+                'sarvam_languages': sarvam_lang_codes if HAS_AGRI_BOT_VOICE else {},
+                'tts_languages': gtt_lang if HAS_AGRI_BOT_VOICE else {},
+                'indicagri_languages': LANGUAGE_MAPPINGS,
+                'has_agri_bot_voice': HAS_AGRI_BOT_VOICE,
+                'default_mapping': {
+                    'bn': {'name': 'Bengali', 'code': 'bn-IN'},
+                    'hi': {'name': 'Hindi', 'code': 'hi-IN'},
+                    'mr': {'name': 'Marathi', 'code': 'mr-IN'},
+                    'ta': {'name': 'Tamil', 'code': 'ta-IN'},
+                    'te': {'name': 'Telugu', 'code': 'te-IN'},
+                    'gu': {'name': 'Gujarati', 'code': 'gu-IN'},
+                    'kn': {'name': 'Kannada', 'code': 'kn-IN'},
+                    'ml': {'name': 'Malayalam', 'code': 'ml-IN'},
+                    'pa': {'name': 'Punjabi', 'code': 'pa-IN'},
+                    'ur': {'name': 'Urdu', 'code': 'ur-IN'},
+                    'en': {'name': 'English', 'code': 'en-IN'},
+                }
+            }
+            return jsonify(languages)
+        except Exception as e:
+            logging.error(f"Error getting voice languages: {e}")
+            return jsonify({'error': str(e)})
+
+    @app.route('/voice/test', methods=['POST'])
+    def test_voice_capabilities():
+        """Test voice transcription capabilities"""
+        try:
+            data = request.get_json() or {}
+            api_key = data.get('api_key') or os.getenv('SARVAM_API_KEY') or os.getenv('sarvam_api')
+            
+            capabilities = {
+                'agri_bot_utilities': HAS_AGRI_BOT_VOICE,
+                'indicagri_voice': voice_transcriber.is_available() if voice_transcriber else False,
+                'sarvam_api_available': bool(api_key),
+                'supported_languages': len(sarvam_lang_codes) if HAS_AGRI_BOT_VOICE else 0,
+                'tts_languages': len(gtt_lang) if HAS_AGRI_BOT_VOICE else 0
+            }
+            
+            # Test agri_bot utilities
+            if HAS_AGRI_BOT_VOICE and agri_bot_utility:
+                try:
+                    # Test if we can access the functions
+                    test_functions = ['speech_to_text', 'text_to_text', 'mono_channel', 'gen_audio']
+                    available_functions = []
+                    for func_name in test_functions:
+                        if hasattr(agri_bot_utility, func_name):
+                            available_functions.append(func_name)
+                    
+                    capabilities['agri_bot_functions'] = available_functions
+                except Exception as e:
+                    capabilities['agri_bot_error'] = str(e)
+            
+            return jsonify({
+                'success': True,
+                'capabilities': capabilities,
+                'recommendations': {
+                    'primary_method': 'agri_bot_sarvam' if HAS_AGRI_BOT_VOICE and api_key else 'indicagri_voice',
+                    'needs_api_key': not bool(api_key),
+                    'voice_ready': bool(api_key and (HAS_AGRI_BOT_VOICE or voice_transcriber.is_available()))
+                }
+            })
+            
+        except Exception as e:
+            logging.error(f"Error testing voice capabilities: {e}")
             return jsonify({'success': False, 'error': str(e)})
 
     @app.route('/chat', methods=['POST'])
     def chat():
-        """Handle chat requests"""
+        """Handle chat requests with Enhanced RAG System pipeline"""
         try:
             data = request.get_json()
             if not data:
                 return jsonify({'success': False, 'error': 'No JSON data provided'})
                 
             query = data.get('query', '').strip()
+            
+            # RAG System Configuration
+            num_sub_queries = data.get('num_sub_queries', 3)
+            db_chunks_per_query = data.get('db_chunks_per_query', 3)
+            web_results_per_query = data.get('web_results_per_query', 3)
+            synthesis_model = data.get('synthesis_model', 'gemma3:27b')
+            enable_database_search = data.get('enable_database_search', True)
+            enable_web_search = data.get('enable_web_search', True)
+            
+            # Legacy chatbot parameters (fallback)
             num_agents = data.get('num_agents', 2)
             base_port = data.get('base_port', 11434)
             
             if not query:
                 return jsonify({'success': False, 'error': 'No query provided'})
             
-            # Get chatbot instance
-            bot = get_chatbot_instance(base_port=base_port, num_agents=num_agents)
+            # Use Enhanced RAG System if available
+            if enhanced_rag_system and HAS_ENHANCED_RAG:
+                try:
+                    logging.info(f"Processing query with Enhanced RAG System: {query}")
+                    
+                    # Process query through the complete RAG pipeline
+                    rag_result = enhanced_rag_system.process_query(
+                        user_query=query,
+                        num_sub_queries=num_sub_queries,
+                        db_chunks_per_query=db_chunks_per_query,
+                        web_results_per_query=web_results_per_query,
+                        synthesis_model=synthesis_model,
+                        enable_database_search=enable_database_search,
+                        enable_web_search=enable_web_search
+                    )
+                    
+                    # Check for errors
+                    if 'error' in rag_result:
+                        return jsonify({
+                            'success': False, 
+                            'error': rag_result['error'],
+                            'fallback': True
+                        })
+                    
+                    # Prepare comprehensive response
+                    response_data = {
+                        'success': True,
+                        'response': rag_result['final_answer'],
+                        'enhanced_rag': True,
+                        'pipeline_info': {
+                            'original_query': rag_result['original_query'],
+                            'refined_query': rag_result['refined_query'],
+                            'sub_queries': rag_result['sub_queries'],
+                            'processing_time': rag_result['processing_time'],
+                            'synthesis_model': rag_result['synthesis_model']
+                        },
+                        'search_stats': rag_result['stats'],
+                        'search_settings': rag_result['search_settings'],
+                        'markdown_content': rag_result['markdown_content'],
+                        'markdown_file_path': rag_result['markdown_file_path']
+                    }
+                    
+                    # Add sub-query results for detailed view
+                    response_data['sub_query_results'] = []
+                    for sub_result in rag_result['sub_query_results']:
+                        sub_data = {
+                            'original_query': sub_result.original_query,
+                            'db_results_count': len(sub_result.db_results),
+                            'web_results_count': len(sub_result.web_results),
+                            'agent_info': getattr(sub_result, 'agent_info', {})
+                        }
+                        response_data['sub_query_results'].append(sub_data)
+                    
+                    return jsonify(response_data)
+                    
+                except Exception as e:
+                    logging.error(f"Enhanced RAG System error: {e}")
+                    # Fall back to basic chatbot
+                    return jsonify({
+                        'success': False,
+                        'error': f"RAG system error: {str(e)}",
+                        'fallback_available': True
+                    })
             
-            # Process the query - use the correct method name
-            if hasattr(bot, 'answer_query'):
-                result = bot.answer_query(query)
-                response = result.get('answer', str(result))
+            # Fallback to basic chatbot if RAG is not available
             else:
-                # Fallback method
-                response = f"Query processed: {query}. IndicAgri Bot response would appear here."
-            
-            return jsonify({'success': True, 'response': response})
-            
+                try:
+                    chatbot_instance = get_chatbot_instance(base_port, num_agents)
+                    response = chatbot_instance.process_user_query(query)
+                    
+                    return jsonify({
+                        'success': True,
+                        'response': response,
+                        'enhanced_rag': False,
+                        'fallback_mode': True
+                    })
+                    
+                except Exception as e:
+                    logging.error(f"Chatbot error: {e}")
+                    return jsonify({
+                        'success': False,
+                        'error': f"Chatbot error: {str(e)}"
+                    })
+                    
         except Exception as e:
             logging.error(f"Chat error: {e}")
             return jsonify({'success': False, 'error': str(e)})
 
     @app.route('/health', methods=['GET'])
     def health():
-        """Health check endpoint"""
-        return jsonify({
-            'status': 'healthy',
-            'voice_transcription_available': voice_transcriber.is_available(),
-            'timestamp': datetime.now().isoformat()
-        })
+        """Enhanced health check endpoint with detailed status"""
+        try:
+            # Check voice transcription capabilities
+            voice_available = False
+            voice_methods = []
+            
+            if voice_transcriber and voice_transcriber.is_available():
+                voice_available = True
+                voice_methods.append('indicagri_voice')
+            
+            if HAS_AGRI_BOT_VOICE:
+                voice_available = True
+                voice_methods.append('agri_bot_sarvam')
+            
+            # Check API key availability
+            api_key_available = bool(os.getenv('SARVAM_API_KEY') or os.getenv('sarvam_api'))
+            
+            # Check Enhanced RAG System
+            rag_available = enhanced_rag_system is not None
+            rag_error = None
+            ollama_models = []
+            
+            if enhanced_rag_system:
+                try:
+                    ollama_models = enhanced_rag_system.get_available_synthesis_models()
+                except Exception as e:
+                    rag_error = str(e)
+                    logging.warning(f"RAG system error: {e}")
+            
+            # Overall status
+            overall_status = 'healthy' if (voice_available or api_key_available) and len(ollama_models) > 0 else 'degraded'
+            
+            status = {
+                'status': overall_status,
+                'timestamp': datetime.now().isoformat(),
+                'components': {
+                    'flask': True,
+                    'voice_transcription': voice_available,
+                    'enhanced_rag': rag_available,
+                    'ollama_connection': len(ollama_models) > 0,
+                    'api_key_configured': api_key_available,
+                    'agri_bot_voice': HAS_AGRI_BOT_VOICE,
+                    'indicagri_voice': voice_transcriber.is_available() if voice_transcriber else False
+                },
+                'details': {
+                    'voice_methods': voice_methods,
+                    'ollama_models_count': len(ollama_models),
+                    'rag_error': rag_error,
+                    'python_path_agri_bot': any('agri_bot' in path for path in sys.path)
+                }
+            }
+            
+            if ollama_models:
+                status['available_models'] = ollama_models[:10]  # Limit to first 10 models
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logging.error(f"Health check error: {e}")
+            return jsonify({
+                'status': 'error',
+                'timestamp': datetime.now().isoformat(),
+                'error': str(e),
+                'components': {
+                    'flask': True,
+                    'voice_transcription': False,
+                    'enhanced_rag': False,
+                    'ollama_connection': False
+                }
+            })
+
+    @app.route('/models', methods=['GET'])
+    def get_models():
+        """Get available synthesis models with enhanced error handling"""
+        try:
+            models = []
+            recommended = ['gemma3:27b', 'gemma3:8b', 'llama3.1:8b', 'llama3.2:3b']
+            
+            if enhanced_rag_system:
+                try:
+                    models = enhanced_rag_system.get_available_synthesis_models()
+                    logging.info(f"Retrieved {len(models)} models from RAG system")
+                except Exception as e:
+                    logging.error(f"Error getting models from RAG system: {e}")
+                    # Fallback: try to get models directly from ollama
+                    try:
+                        import subprocess
+                        result = subprocess.run(['ollama', 'list'], capture_output=True, text=True, timeout=10)
+                        if result.returncode == 0:
+                            lines = result.stdout.strip().split('\n')[1:]  # Skip header
+                            models = [line.split()[0] for line in lines if line.strip()]
+                            logging.info(f"Retrieved {len(models)} models from ollama directly")
+                    except Exception as fallback_error:
+                        logging.error(f"Fallback model retrieval failed: {fallback_error}")
+            
+            return jsonify({
+                'success': True,
+                'models': models,
+                'count': len(models),
+                'recommended': recommended,
+                'source': 'enhanced_rag' if enhanced_rag_system else 'ollama_direct'
+            })
+            
+        except Exception as e:
+            logging.error(f"Models endpoint error: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'models': [],
+                'count': 0,
+                'recommended': ['gemma3:27b', 'gemma3:8b', 'llama3.1:8b', 'llama3.2:3b']
+            })
+
+    @app.route('/download_markdown/<path:filename>')
+    def download_markdown(filename):
+        """Download generated markdown report"""
+        try:
+            # Security check - only allow files in temp directory
+            if not filename.startswith('rag_report_'):
+                return jsonify({'error': 'Invalid filename'}), 400
+            
+            file_path = os.path.join(tempfile.gettempdir(), filename)
+            
+            if not os.path.exists(file_path):
+                return jsonify({'error': 'File not found'}), 404
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            return jsonify({
+                'success': True,
+                'content': content,
+                'filename': filename
+            })
+            
+        except Exception as e:
+            logging.error(f"Error downloading markdown: {e}")
+            return jsonify({'error': str(e)}), 500
 
     def run_server(host='0.0.0.0', port=5000, debug=False):
         """Run the Flask server"""
@@ -1212,8 +1714,9 @@ if HAS_FLASK:
             print("Flask not available. Please install with: pip install flask flask-cors")
             return
             
-        print(f"🌾 Starting IndicAgri Bot Web Interface on http://{host}:{port}")
+        print(f"🌾 Starting Enhanced IndicAgri Bot Web Interface on http://{host}:{port}")
         print(f"Voice transcription: {'✓ Available' if voice_transcriber.is_available() else '✗ Not available'}")
+        print(f"Enhanced RAG System: {'✓ Available' if enhanced_rag_system else '✗ Not available'}")
         
         app.run(host=host, port=port, debug=debug)
 

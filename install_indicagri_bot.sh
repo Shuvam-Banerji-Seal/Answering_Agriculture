@@ -158,6 +158,31 @@ install_python_dependencies() {
     # Install core dependencies
     pip install -r "$REQUIREMENTS_FILE"
     
+    # Install additional dependencies for voice features
+    if [ "$VOICE_ENABLED" = "true" ]; then
+        log_info "Installing voice transcription dependencies..."
+        pip install gtts pydub tqdm sarvamai
+    fi
+    
+    # Install additional dependencies for enhanced features
+    log_info "Installing additional dependencies..."
+    pip install duckduckgo-search
+    
+    # Install system dependencies for audio processing
+    if command -v apt-get &> /dev/null; then
+        log_info "Installing system audio dependencies (requires sudo)..."
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+    elif command -v dnf &> /dev/null; then
+        log_info "Installing system audio dependencies (requires sudo)..."
+        sudo dnf install -y ffmpeg
+    elif command -v brew &> /dev/null; then
+        log_info "Installing system audio dependencies..."
+        brew install ffmpeg
+    else
+        log_warning "Could not install ffmpeg automatically. Please install it manually for audio processing."
+    fi
+    
     log_success "Python dependencies installed successfully"
 }
 

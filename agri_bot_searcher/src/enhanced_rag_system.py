@@ -19,6 +19,22 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+# Data classes for metadata compatibility
+@dataclass
+class ChunkMetadata:
+    """Metadata for document chunks (needed for pickle compatibility)"""
+    source: str = ""
+    chunk_id: str = ""
+    title: str = ""
+    content: str = ""
+    url: str = ""
+    text: str = ""  # Legacy field
+    
+    def __post_init__(self):
+        # Handle legacy formats
+        if hasattr(self, 'text') and self.text and not self.content:
+            self.content = self.text
+
 # Import sentence transformers
 try:
     from sentence_transformers import SentenceTransformer
@@ -208,7 +224,7 @@ Generate exactly {num_queries} sub-queries, one per line, numbered 1-{num_querie
 class DatabaseRetriever:
     """Retrieves chunks from the embeddings database"""
     
-    def __init__(self, embeddings_dir: str, model_name: str = "Qwen/Qwen3-Embedding-8B"):
+    def __init__(self, embeddings_dir: str, model_name: str = "all-MiniLM-L6-v2"):
         self.embeddings_dir = embeddings_dir
         self.model_name = model_name
         self.logger = logging.getLogger(__name__)
@@ -221,8 +237,14 @@ class DatabaseRetriever:
         self.device = 'cuda' if torch.cuda.is_available() and self._check_gpu_memory() else 'cpu'
         self.logger.info(f"Using device: {self.device}")
         
-        # Load embedding model with GPU support
-        self.embedding_model = SentenceTransformer(model_name, device=self.device)
+        # Load embedding model with GPU support - using lighter model for better performance
+        try:
+            self.embedding_model = SentenceTransformer(model_name, device=self.device)
+            self.logger.info(f"Loaded embedding model: {model_name}")
+        except Exception as e:
+            self.logger.warning(f"Failed to load {model_name}, falling back to all-MiniLM-L6-v2: {e}")
+            # Fallback to a lighter model
+            self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=self.device)
         
         # Load pre-computed embeddings
         self.load_embeddings()
@@ -273,23 +295,79 @@ class DatabaseRetriever:
             
             self.logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
             
-            # Load metadata
+            # Load metadata with better error handling
+            # Prefer pickle file for faster loading of large datasets
             metadata_json_path = os.path.join(self.embeddings_dir, "metadata.json")
             metadata_pkl_path = os.path.join(self.embeddings_dir, "metadata.pkl")
             
-            if os.path.exists(metadata_json_path):
-                with open(metadata_json_path, 'r', encoding='utf-8') as f:
-                    self.metadata = json.load(f)
-            elif os.path.exists(metadata_pkl_path):
-                with open(metadata_pkl_path, 'rb') as f:
-                    self.metadata = pickle.load(f)
-            else:
-                raise FileNotFoundError("Metadata not found")
+            metadata_loaded = False
+            
+            # Try pickle first (faster for large files)
+            if os.path.exists(metadata_pkl_path):
+                try:
+                    self.logger.info("Loading metadata from pickle file (faster for large datasets)...")
+                    
+                    # Custom unpickler to handle missing classes
+                    class CustomUnpickler(pickle.Unpickler):
+                        def find_class(self, module, name):
+                            # Handle ChunkMetadata from different modules
+                            if name == 'ChunkMetadata':
+                                return ChunkMetadata
+                            return super().find_class(module, name)
+                    
+                    with open(metadata_pkl_path, 'rb') as f:
+                        unpickler = CustomUnpickler(f)
+                        self.metadata = unpickler.load()
+                    
+                    metadata_loaded = True
+                    self.logger.info(f"Loaded {len(self.metadata)} metadata entries from pickle file")
+                except Exception as e:
+                    self.logger.warning(f"Failed to load pickle metadata: {e}")
+            
+            # Try JSON as fallback (slower but more portable)
+            if not metadata_loaded and os.path.exists(metadata_json_path):
+                try:
+                    self.logger.info("Loading metadata from JSON file...")
+                    self.logger.warning("JSON file is large (4.6GB), this may take several minutes...")
+                    
+                    # For very large JSON files, we might need to process in chunks
+                    file_size = os.path.getsize(metadata_json_path) / (1024 * 1024 * 1024)  # GB
+                    if file_size > 3:  # If larger than 3GB
+                        self.logger.warning(f"JSON file is {file_size:.1f}GB, this will take a while...")
+                        self.logger.warning("Consider using the pickle file instead for faster loading")
+                        # Set a timeout of 10 minutes for very large files
+                        import signal
+                        def timeout_handler(signum, frame):
+                            raise TimeoutError("JSON loading timeout - file too large")
+                        signal.signal(signal.SIGALRM, timeout_handler)
+                        signal.alarm(600)  # 10 minutes timeout
+                        
+                        try:
+                            with open(metadata_json_path, 'r', encoding='utf-8') as f:
+                                self.metadata = json.load(f)
+                        finally:
+                            signal.alarm(0)  # Cancel timeout
+                    else:
+                        with open(metadata_json_path, 'r', encoding='utf-8') as f:
+                            self.metadata = json.load(f)
+                    
+                    metadata_loaded = True
+                    self.logger.info(f"Loaded {len(self.metadata)} metadata entries from JSON file")
+                except (json.JSONDecodeError, UnicodeDecodeError, MemoryError, TimeoutError) as e:
+                    self.logger.warning(f"Failed to load JSON metadata: {e}")
+                    if isinstance(e, TimeoutError):
+                        self.logger.warning("JSON file is too large. Consider using pickle format or regenerating embeddings.")
+            
+            if not metadata_loaded:
+                raise FileNotFoundError("No valid metadata found")
             
             self.logger.info(f"Loaded metadata for {len(self.metadata)} chunks")
             
         except Exception as e:
             self.logger.error(f"Error loading embeddings: {e}")
+            # Create dummy data to allow system to continue running
+            self.index = None
+            self.metadata = []
             raise
     
     def retrieve_chunks(self, query: str, top_k: int = 5) -> List[DatabaseChunk]:
@@ -544,16 +622,37 @@ class AnswerSynthesizer:
         self.logger = logging.getLogger(__name__)
     
     def get_available_models(self) -> List[str]:
-        """Get list of available Ollama models"""
+        """Get list of available Ollama models using ollama list command"""
+        try:
+            # First try using ollama command line
+            import subprocess
+            result = subprocess.run(['ollama', 'list'], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                models = []
+                for line in lines[1:]:  # Skip header line
+                    if line.strip():
+                        # Extract model name (first column)
+                        model_name = line.split()[0]
+                        if model_name and ':' in model_name:
+                            models.append(model_name)
+                self.logger.info(f"Found {len(models)} models via ollama list")
+                return models
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
+            self.logger.warning(f"ollama list command failed: {e}, trying API")
+        
+        # Fallback to API method
         try:
             response = requests.get(f'{self.ollama_host}/api/tags', timeout=10)
             if response.status_code == 200:
                 models = response.json().get('models', [])
-                return [model['name'] for model in models]
+                model_names = [model['name'] for model in models]
+                self.logger.info(f"Found {len(model_names)} models via API")
+                return model_names
             return []
         except Exception as e:
             self.logger.error(f"Error getting available models: {e}")
-            return []
+            return ['llama3.2', 'llama3.1', 'qwen2.5']  # Default fallback models
     
     def synthesize_answer(self, original_query: str, markdown_content: str, model: str = "gemma3:27b") -> str:
         """Synthesize final answer from markdown content with inline citations"""
