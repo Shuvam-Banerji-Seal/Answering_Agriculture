@@ -53,7 +53,6 @@ done
 
 # Backup old installation scripts
 OLD_SCRIPTS=(
-    "install_agri_bot.sh"
     "start_agri_bot_original.sh"
     "quick_fix.sh"
     "fix_compatibility.sh"

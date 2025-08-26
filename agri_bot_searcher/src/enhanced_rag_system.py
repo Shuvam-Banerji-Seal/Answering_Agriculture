@@ -19,22 +19,6 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-# Data classes for metadata compatibility
-@dataclass
-class ChunkMetadata:
-    """Metadata for document chunks (needed for pickle compatibility)"""
-    source: str = ""
-    chunk_id: str = ""
-    title: str = ""
-    content: str = ""
-    url: str = ""
-    text: str = ""  # Legacy field
-    
-    def __post_init__(self):
-        # Handle legacy formats
-        if hasattr(self, 'text') and self.text and not self.content:
-            self.content = self.text
-
 # Import sentence transformers
 try:
     from sentence_transformers import SentenceTransformer
@@ -224,7 +208,7 @@ Generate exactly {num_queries} sub-queries, one per line, numbered 1-{num_querie
 class DatabaseRetriever:
     """Retrieves chunks from the embeddings database"""
     
-    def __init__(self, embeddings_dir: str, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, embeddings_dir: str, model_name: str = "Qwen/Qwen3-Embedding-8B"):
         self.embeddings_dir = embeddings_dir
         self.model_name = model_name
         self.logger = logging.getLogger(__name__)
@@ -237,14 +221,8 @@ class DatabaseRetriever:
         self.device = 'cuda' if torch.cuda.is_available() and self._check_gpu_memory() else 'cpu'
         self.logger.info(f"Using device: {self.device}")
         
-        # Load embedding model with GPU support - using lighter model for better performance
-        try:
-            self.embedding_model = SentenceTransformer(model_name, device=self.device)
-            self.logger.info(f"Loaded embedding model: {model_name}")
-        except Exception as e:
-            self.logger.warning(f"Failed to load {model_name}, falling back to all-MiniLM-L6-v2: {e}")
-            # Fallback to a lighter model
-            self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=self.device)
+        # Load embedding model with GPU support
+        self.embedding_model = SentenceTransformer(model_name, device=self.device)
         
         # Load pre-computed embeddings
         self.load_embeddings()
@@ -262,7 +240,7 @@ class DatabaseRetriever:
             return False
     
     def load_embeddings(self):
-        """Load FAISS index and metadata with GPU optimization"""
+        """Load FAISS index and metadata with improved error handling and optimization"""
         try:
             # Load FAISS index
             possible_index_names = ["faiss_index.bin", "faiss_index.index"]
@@ -277,6 +255,7 @@ class DatabaseRetriever:
             if not index_path:
                 raise FileNotFoundError(f"FAISS index not found in {self.embeddings_dir}")
             
+            self.logger.info(f"Loading FAISS index from {index_path}")
             self.index = faiss.read_index(index_path)
             
             # Try to move index to GPU if available and beneficial
@@ -295,107 +274,135 @@ class DatabaseRetriever:
             
             self.logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
             
-            # Load metadata with better error handling
-            # Prefer pickle file for faster loading of large datasets
-            metadata_json_path = os.path.join(self.embeddings_dir, "metadata.json")
+            # Load metadata with improved handling for large files
             metadata_pkl_path = os.path.join(self.embeddings_dir, "metadata.pkl")
+            metadata_json_path = os.path.join(self.embeddings_dir, "metadata.json")
             
-            metadata_loaded = False
-            
-            # Try pickle first (faster for large files)
+            # Try pickle first (much faster)
             if os.path.exists(metadata_pkl_path):
                 try:
-                    self.logger.info("Loading metadata from pickle file (faster for large datasets)...")
-                    
-                    # Custom unpickler to handle missing classes
-                    class CustomUnpickler(pickle.Unpickler):
-                        def find_class(self, module, name):
-                            # Handle ChunkMetadata from different modules
-                            if name == 'ChunkMetadata':
-                                return ChunkMetadata
-                            return super().find_class(module, name)
-                    
+                    self.logger.info("Loading metadata from pickle file...")
                     with open(metadata_pkl_path, 'rb') as f:
-                        unpickler = CustomUnpickler(f)
-                        self.metadata = unpickler.load()
-                    
-                    metadata_loaded = True
-                    self.logger.info(f"Loaded {len(self.metadata)} metadata entries from pickle file")
-                except Exception as e:
-                    self.logger.warning(f"Failed to load pickle metadata: {e}")
+                        self.metadata = pickle.load(f)
+                    self.logger.info(f"Successfully loaded metadata for {len(self.metadata)} chunks from pickle")
+                except Exception as pickle_error:
+                    self.logger.warning(f"Failed to load pickle metadata: {pickle_error}")
+                    self.metadata = None
             
-            # Try JSON as fallback (slower but more portable)
-            if not metadata_loaded and os.path.exists(metadata_json_path):
+            # Fallback to JSON if pickle failed or doesn't exist
+            if self.metadata is None and os.path.exists(metadata_json_path):
                 try:
-                    self.logger.info("Loading metadata from JSON file...")
-                    self.logger.warning("JSON file is large (4.6GB), this may take several minutes...")
+                    # Check file size first
+                    file_size = os.path.getsize(metadata_json_path)
+                    file_size_gb = file_size / (1024**3)
                     
-                    # For very large JSON files, we might need to process in chunks
-                    file_size = os.path.getsize(metadata_json_path) / (1024 * 1024 * 1024)  # GB
-                    if file_size > 3:  # If larger than 3GB
-                        self.logger.warning(f"JSON file is {file_size:.1f}GB, this will take a while...")
+                    if file_size_gb > 1.0:
+                        self.logger.warning(f"JSON file is large ({file_size_gb:.1f}GB), this may take several minutes...")
+                        self.logger.warning(f"JSON file is {file_size_gb:.1f}GB, this will take a while...")
                         self.logger.warning("Consider using the pickle file instead for faster loading")
-                        # Set a timeout of 10 minutes for very large files
-                        import signal
-                        def timeout_handler(signum, frame):
-                            raise TimeoutError("JSON loading timeout - file too large")
-                        signal.signal(signal.SIGALRM, timeout_handler)
-                        signal.alarm(600)  # 10 minutes timeout
-                        
-                        try:
-                            with open(metadata_json_path, 'r', encoding='utf-8') as f:
-                                self.metadata = json.load(f)
-                        finally:
-                            signal.alarm(0)  # Cancel timeout
-                    else:
-                        with open(metadata_json_path, 'r', encoding='utf-8') as f:
-                            self.metadata = json.load(f)
                     
-                    metadata_loaded = True
-                    self.logger.info(f"Loaded {len(self.metadata)} metadata entries from JSON file")
-                except (json.JSONDecodeError, UnicodeDecodeError, MemoryError, TimeoutError) as e:
-                    self.logger.warning(f"Failed to load JSON metadata: {e}")
-                    if isinstance(e, TimeoutError):
-                        self.logger.warning("JSON file is too large. Consider using pickle format or regenerating embeddings.")
+                    self.logger.info("Loading metadata from JSON file...")
+                    with open(metadata_json_path, 'r', encoding='utf-8') as f:
+                        self.metadata = json.load(f)
+                    self.logger.info(f"Successfully loaded metadata for {len(self.metadata)} chunks from JSON")
+                    
+                    # Create pickle file for faster future loading
+                    self.logger.info("Creating pickle file for faster future loading...")
+                    try:
+                        with open(metadata_pkl_path, 'wb') as f:
+                            pickle.dump(self.metadata, f)
+                        self.logger.info("Created pickle file for faster loading next time")
+                    except Exception as pickle_save_error:
+                        self.logger.warning(f"Failed to save pickle file: {pickle_save_error}")
+                        
+                except Exception as json_error:
+                    self.logger.error(f"Failed to load JSON metadata: {json_error}")
+                    raise FileNotFoundError("Could not load metadata from either pickle or JSON files")
             
-            if not metadata_loaded:
-                raise FileNotFoundError("No valid metadata found")
+            if self.metadata is None:
+                raise FileNotFoundError("No valid metadata file found")
             
-            self.logger.info(f"Loaded metadata for {len(self.metadata)} chunks")
+            # Validate metadata compatibility with FAISS index
+            if len(self.metadata) != self.index.ntotal:
+                self.logger.warning(f"Metadata count ({len(self.metadata)}) doesn't match FAISS index count ({self.index.ntotal})")
+                self.logger.warning("This may cause indexing errors during retrieval")
+            
+            self.logger.info(f"Successfully loaded embeddings system with {self.index.ntotal} vectors and {len(self.metadata)} metadata entries")
             
         except Exception as e:
             self.logger.error(f"Error loading embeddings: {e}")
-            # Create dummy data to allow system to continue running
-            self.index = None
-            self.metadata = []
             raise
     
     def retrieve_chunks(self, query: str, top_k: int = 5) -> List[DatabaseChunk]:
-        """Retrieve top-k most relevant chunks for the query"""
+        """Retrieve top-k most relevant chunks for the query with improved error handling"""
         try:
+            if not hasattr(self, 'index') or self.index is None:
+                self.logger.error("FAISS index not loaded")
+                return []
+            
+            if not hasattr(self, 'metadata') or self.metadata is None:
+                self.logger.error("Metadata not loaded")
+                return []
+            
             # Embed the query
             query_embedding = self.embedding_model.encode([query]).astype('float32')
             
+            # Normalize for cosine similarity if the index expects it
+            import faiss
+            faiss.normalize_L2(query_embedding)
+            
             # Search in FAISS index
-            distances, indices = self.index.search(query_embedding, top_k)
+            try:
+                distances, indices = self.index.search(query_embedding, top_k)
+            except Exception as search_error:
+                self.logger.error(f"Error searching FAISS index: {search_error}")
+                return []
             
             # Prepare results
             results = []
             for distance, idx in zip(distances[0], indices[0]):
-                if idx < len(self.metadata):
+                try:
+                    if idx < 0 or idx >= len(self.metadata):
+                        self.logger.warning(f"Invalid index {idx}, skipping")
+                        continue
+                        
                     chunk_data = self.metadata[idx]
                     
+                    # Handle both dict and object metadata formats
+                    if isinstance(chunk_data, dict):
+                        chunk_text = chunk_data.get('chunk_text', '')
+                        source = chunk_data.get('link', chunk_data.get('source', ''))
+                        title = chunk_data.get('title', '')
+                        chunk_id = chunk_data.get('chunk_id', str(idx))
+                        source_domain = chunk_data.get('source_domain', '')
+                    else:
+                        # Handle object format (from pickle)
+                        chunk_text = getattr(chunk_data, 'chunk_text', '')
+                        source = getattr(chunk_data, 'link', getattr(chunk_data, 'source', ''))
+                        title = getattr(chunk_data, 'title', '')
+                        chunk_id = getattr(chunk_data, 'chunk_id', str(idx))
+                        source_domain = getattr(chunk_data, 'source_domain', '')
+                    
+                    if not chunk_text:
+                        self.logger.warning(f"Empty chunk text for index {idx}, skipping")
+                        continue
+                    
                     chunk = DatabaseChunk(
-                        chunk_text=chunk_data.get('chunk_text', ''),
-                        source=chunk_data.get('source', ''),
-                        title=chunk_data.get('title', ''),
-                        chunk_id=chunk_data.get('chunk_id', str(idx)),
-                        source_domain=chunk_data.get('source_domain', ''),
-                        similarity_score=float(1 / (1 + distance)),
-                        metadata=chunk_data
+                        chunk_text=chunk_text,
+                        source=source,
+                        title=title,
+                        chunk_id=str(chunk_id),
+                        source_domain=source_domain,
+                        similarity_score=float(1 / (1 + distance)) if distance >= 0 else 0.0,
+                        metadata=chunk_data if isinstance(chunk_data, dict) else {}
                     )
                     results.append(chunk)
+                    
+                except Exception as chunk_error:
+                    self.logger.warning(f"Error processing chunk {idx}: {chunk_error}")
+                    continue
             
+            self.logger.info(f"Retrieved {len(results)} chunks for query: {query[:50]}...")
             return results
             
         except Exception as e:
@@ -622,37 +629,16 @@ class AnswerSynthesizer:
         self.logger = logging.getLogger(__name__)
     
     def get_available_models(self) -> List[str]:
-        """Get list of available Ollama models using ollama list command"""
-        try:
-            # First try using ollama command line
-            import subprocess
-            result = subprocess.run(['ollama', 'list'], capture_output=True, text=True, timeout=10)
-            if result.returncode == 0:
-                lines = result.stdout.strip().split('\n')
-                models = []
-                for line in lines[1:]:  # Skip header line
-                    if line.strip():
-                        # Extract model name (first column)
-                        model_name = line.split()[0]
-                        if model_name and ':' in model_name:
-                            models.append(model_name)
-                self.logger.info(f"Found {len(models)} models via ollama list")
-                return models
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
-            self.logger.warning(f"ollama list command failed: {e}, trying API")
-        
-        # Fallback to API method
+        """Get list of available Ollama models"""
         try:
             response = requests.get(f'{self.ollama_host}/api/tags', timeout=10)
             if response.status_code == 200:
                 models = response.json().get('models', [])
-                model_names = [model['name'] for model in models]
-                self.logger.info(f"Found {len(model_names)} models via API")
-                return model_names
+                return [model['name'] for model in models]
             return []
         except Exception as e:
             self.logger.error(f"Error getting available models: {e}")
-            return ['llama3.2', 'llama3.1', 'qwen2.5']  # Default fallback models
+            return []
     
     def synthesize_answer(self, original_query: str, markdown_content: str, model: str = "gemma3:27b") -> str:
         """Synthesize final answer from markdown content with inline citations"""
@@ -816,10 +802,24 @@ class EnhancedRAGSystem:
         self.temp_dir = temp_dir or tempfile.gettempdir()
         self.logger = logging.getLogger(__name__)
         
-        # Initialize components
+        # Initialize components with error handling
         self.query_refiner = QueryRefiner(ollama_host)
         self.sub_query_generator = SubQueryGenerator(ollama_host)
-        self.db_retriever = DatabaseRetriever(embeddings_dir)
+        
+        # Try to initialize database retriever
+        self.db_retriever = None
+        self.db_available = False
+        try:
+            if os.path.exists(embeddings_dir):
+                self.db_retriever = DatabaseRetriever(embeddings_dir)
+                self.db_available = True
+                self.logger.info("Database retriever initialized successfully")
+            else:
+                self.logger.warning(f"Embeddings directory not found: {embeddings_dir}")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize database retriever: {e}")
+            self.logger.info("RAG system will continue with web search only")
+        
         self.web_searcher = WebSearcher()
         self.markdown_generator = MarkdownGenerator()
         self.answer_synthesizer = AnswerSynthesizer(ollama_host)
@@ -847,10 +847,23 @@ class EnhancedRAGSystem:
         self.logger.info(f"Database search: {'enabled' if enable_database_search else 'disabled'}")
         self.logger.info(f"Web search: {'enabled' if enable_web_search else 'disabled'}")
         
-        # Validate that at least one search method is enabled
+        # Validate that at least one search method is enabled and available
         if not enable_database_search and not enable_web_search:
             return {
                 'error': 'At least one search method (database or web) must be enabled',
+                'original_query': user_query,
+                'processing_time': 0
+            }
+        
+        # Check if database search is requested but not available
+        if enable_database_search and not self.db_available:
+            self.logger.warning("Database search requested but database not available, using web search only")
+            enable_database_search = False
+            
+        # Ensure at least web search is available if database is not
+        if not enable_database_search and not enable_web_search:
+            return {
+                'error': 'No search methods available (database failed to load and web search disabled)',
                 'original_query': user_query,
                 'processing_time': 0
             }
