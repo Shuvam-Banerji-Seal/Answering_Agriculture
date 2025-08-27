@@ -4,6 +4,7 @@ let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 let isProcessing = false;
+let currentResponseData = null; // Store current response data for tab switching
 
 // DOM elements - Core functionality
 const recordBtn = document.getElementById('record-btn');
@@ -35,7 +36,6 @@ const processingTimeSpan = document.getElementById('processing-time');
 const subQueriesCountSpan = document.getElementById('sub-queries-count');
 const dbResultsCountSpan = document.getElementById('db-results-count');
 const webResultsCountSpan = document.getElementById('web-results-count');
-const pipelineDetails = document.getElementById('pipeline-details');
 
 // DOM elements - Tab system
 const tabButtons = document.querySelectorAll('.tab-btn');
@@ -45,6 +45,8 @@ const loadingIndicator = document.getElementById('loading-indicator');
 // DOM elements - Response tabs
 const markdownContent = document.getElementById('markdown-content');
 const citationsContent = document.getElementById('citations-content');
+const downloadMarkdownBtn = document.getElementById('download-markdown');
+const pipelineDetails = document.getElementById('pipeline-details');
 
 // DOM elements - Voice settings
 const languageSelect = document.getElementById('language-select');
@@ -157,6 +159,11 @@ function initializeEventListeners() {
         });
     }
     
+    // Download markdown report
+    if (downloadMarkdownBtn) {
+        downloadMarkdownBtn.addEventListener('click', downloadMarkdownReport);
+    }
+    
     // Status refresh buttons
     if (refreshModelsBtn) {
         refreshModelsBtn.addEventListener('click', loadAvailableModels);
@@ -203,6 +210,8 @@ function validateSearchSettings() {
 
 // Switch tabs in the response panel
 function switchTab(tabName) {
+    console.log(`Switching to tab: ${tabName}`);
+    
     // Update tab buttons
     tabButtons.forEach(btn => {
         btn.classList.remove('active');
@@ -211,13 +220,52 @@ function switchTab(tabName) {
         }
     });
     
-    // Update tab panes
+    // Update tab panes - handle specific tab name mappings
     tabPanes.forEach(pane => {
         pane.classList.remove('active');
-        if (pane.id === `${tabName}-content` || pane.id === tabName) {
-            pane.classList.add('active');
-        }
     });
+    
+    // Map tab names to actual element IDs
+    let targetElementId;
+    switch (tabName) {
+        case 'response':
+            targetElementId = 'response-content';
+            break;
+        case 'pipeline':
+            targetElementId = 'pipeline-info';
+            break;
+        case 'markdown':
+            targetElementId = 'markdown-content';
+            break;
+        case 'citations':
+            targetElementId = 'citations-content';
+            break;
+        default:
+            targetElementId = `${tabName}-content`;
+    }
+    
+    const targetPane = document.getElementById(targetElementId);
+    if (targetPane) {
+        targetPane.classList.add('active');
+        console.log(`Activated tab pane: ${targetElementId}`);
+        
+        // If switching to markdown tab and we have response data, render it
+        if (tabName === 'markdown' && currentResponseData && currentResponseData.markdown_content) {
+            displayMarkdownContent(currentResponseData.markdown_content);
+        }
+        
+        // If switching to citations tab and we have response data, render it
+        if (tabName === 'citations' && currentResponseData && currentResponseData.response) {
+            extractAndDisplayCitations(currentResponseData.response, currentResponseData.markdown_content);
+        }
+        
+        // If switching to pipeline tab and we have response data, render it
+        if (tabName === 'pipeline' && currentResponseData && currentResponseData.pipeline_info) {
+            displayPipelineInfo(currentResponseData.pipeline_info, currentResponseData.search_stats, currentResponseData.sub_query_results);
+        }
+    } else {
+        console.error(`Target pane not found: ${targetElementId}`);
+    }
 }
 
 // Show notification to user
@@ -581,31 +629,56 @@ async function processQuery(query) {
 
 // Display comprehensive response
 function displayResponse(result) {
-    // Main answer
+    console.log('Displaying response:', result);
+    
+    // Store response data globally for tab switching
+    currentResponseData = result;
+    
+    // Main answer (always displayed in response tab)
     if (responseContent) {
         responseContent.innerHTML = formatAnswer(result.response);
+        console.log('Main response displayed');
     }
     
-    // Pipeline information
+    // Pipeline information (populate immediately)
     if (result.enhanced_rag && result.pipeline_info) {
         displayPipelineInfo(result.pipeline_info, result.search_stats, result.sub_query_results);
+        console.log('Pipeline info displayed');
     }
     
-    // Markdown content
+    // Markdown content (populate immediately)
     if (result.markdown_content) {
         displayMarkdownContent(result.markdown_content);
+        console.log('Markdown content displayed');
     }
     
-    // Citations
+    // Citations (populate immediately)
     if (result.response) {
         extractAndDisplayCitations(result.response, result.markdown_content);
+        console.log('Citations displayed');
     }
     
-    // Update download button
-    if (result.markdown_file_path) {
-        downloadMarkdownBtn.style.display = 'block';
-        downloadMarkdownBtn.dataset.filename = result.markdown_file_path.split('/').pop();
+    // Update processing stats in header
+    if (processingTimeSpan) {
+        processingTimeSpan.textContent = result.processing_time || '--';
     }
+    if (subQueriesCountSpan) {
+        subQueriesCountSpan.textContent = result.sub_queries_count || '--';
+    }
+    if (dbResultsCountSpan) {
+        dbResultsCountSpan.textContent = result.db_results_count || '--';
+    }
+    if (webResultsCountSpan) {
+        webResultsCountSpan.textContent = result.web_results_count || '--';
+    }
+    
+    // Show download button if markdown is available
+    if (downloadMarkdownBtn && result.markdown_content) {
+        downloadMarkdownBtn.style.display = 'block';
+    }
+    
+    // Switch back to response tab to show the main answer
+    switchTab('response');
 }
 
 // Format the main answer with citation highlighting
@@ -697,8 +770,14 @@ function displayPipelineInfo(pipelineInfo, searchStats, subQueryResults) {
 
 // Display markdown content
 function displayMarkdownContent(markdownText) {
-    if (!markdownContent) {
-        console.warn('markdownContent element not found');
+    const markdownDisplay = document.getElementById('markdown-display');
+    if (!markdownDisplay) {
+        console.warn('markdown-display element not found');
+        return;
+    }
+    
+    if (!markdownText || markdownText.trim() === '') {
+        markdownDisplay.innerHTML = '<p class="placeholder">No markdown content available.</p>';
         return;
     }
     
@@ -743,13 +822,20 @@ function displayMarkdownContent(markdownText) {
     // Handle consecutive list items
     html = html.replace(/<\/ul><br><ul>/g, '');
     
-    markdownContent.innerHTML = `<div class="markdown-preview">${html}</div>`;
+    markdownDisplay.innerHTML = `<div class="markdown-preview">${html}</div>`;
+    console.log('Markdown content rendered');
 }
 
 // Extract and display citations
 function extractAndDisplayCitations(answer, markdownText) {
-    if (!citationsContent) {
-        console.warn('citationsContent element not found');
+    const citationsDisplay = document.getElementById('citations-display');
+    if (!citationsDisplay) {
+        console.warn('citations-display element not found');
+        return;
+    }
+    
+    if (!answer || typeof answer !== 'string') {
+        citationsDisplay.innerHTML = '<p class="placeholder">No answer text available for citation extraction.</p>';
         return;
     }
     
@@ -762,7 +848,7 @@ function extractAndDisplayCitations(answer, markdownText) {
     }
     
     if (citations.length === 0) {
-        citationsContent.innerHTML = '<p class="placeholder">No citations found in the response.</p>';
+        citationsDisplay.innerHTML = '<p class="placeholder">No citations found in the response.</p>';
         return;
     }
     
@@ -789,7 +875,7 @@ function extractAndDisplayCitations(answer, markdownText) {
     });
     
     citationsHTML += '</div>';
-    citationsContent.innerHTML = citationsHTML;
+    citationsDisplay.innerHTML = citationsHTML;
     
     // Add click handlers for citation highlighting
     document.querySelectorAll('.citation-link').forEach(link => {
@@ -798,6 +884,8 @@ function extractAndDisplayCitations(answer, markdownText) {
             highlightCitation(citationId);
         });
     });
+    
+    console.log(`Citations displayed: ${uniqueCitations.length} unique citations`);
 }
 
 // Highlight specific citation
@@ -817,58 +905,31 @@ function highlightCitation(citationId) {
     }
 }
 
-// Switch response tabs
-function switchTab(tabName) {
-    // Get response tab buttons dynamically
-    const responseTabs = document.querySelectorAll('.response-tabs .tab-btn');
-    responseTabs.forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.dataset.tab === tabName) {
-            tab.classList.add('active');
-        }
-    });
-    
-    tabPanes.forEach(pane => {
-        pane.classList.remove('active');
-    });
-    
-    const targetPane = document.getElementById(`${tabName}-tab`);
-    if (targetPane) {
-        targetPane.classList.add('active');
-    }
-}
-
 // Download markdown report
 async function downloadMarkdownReport() {
-    if (!downloadMarkdownBtn.dataset.filename) {
-        showStatus('No markdown report available', 'warning');
+    if (!currentResponseData || !currentResponseData.markdown_content) {
+        showStatus('No markdown content available for download', 'warning');
         return;
     }
     
     try {
-        const response = await fetch(`/download_markdown/${downloadMarkdownBtn.dataset.filename}`);
-        const result = await response.json();
+        // Create a blob with the markdown content
+        const markdownBlob = new Blob([currentResponseData.markdown_content], { type: 'text/markdown' });
         
-        if (result.success) {
-            // Create and trigger download
-            const blob = new Blob([result.content], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = result.filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            URL.revokeObjectURL(url);
-            showStatus('Markdown report downloaded', 'success');
-        } else {
-            showStatus(`Download failed: ${result.error}`, 'error');
-        }
+        // Create a download link
+        const url = URL.createObjectURL(markdownBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `indicagri_response_${new Date().toISOString().split('T')[0]}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showStatus('Markdown report downloaded successfully', 'success');
     } catch (error) {
-        console.error('Error downloading markdown:', error);
-        showStatus('Error downloading report', 'error');
+        console.error('Download error:', error);
+        showStatus('Error downloading markdown report', 'error');
     }
 }
 
