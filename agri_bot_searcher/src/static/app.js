@@ -463,12 +463,16 @@ function updateRecordingUI(recording) {
         return;
     }
     
+    const recordLabel = document.querySelector('.record-btn-label');
+    
     if (recording) {
         recordBtn.classList.add('recording');
-        recordBtn.textContent = '⏹️ Stop Recording';
+        recordBtn.textContent = '⏹️';
+        if (recordLabel) recordLabel.textContent = 'Stop Recording';
     } else {
         recordBtn.classList.remove('recording');
-        recordBtn.textContent = '🎤 Start Recording';
+        recordBtn.textContent = '🎤';
+        if (recordLabel) recordLabel.textContent = 'Start Recording';
     }
 }
 
