@@ -575,7 +575,7 @@ async function handleTextInput() {
 // Process query through Enhanced RAG System
 async function processQuery(query) {
     if (isProcessing) {
-        showStatus('Already processing. Please wait...', 'warning');
+        showStatus('Please wait for the current query to complete', 'warning');
         return;
     }
     
@@ -583,28 +583,89 @@ async function processQuery(query) {
     showLoading(true);
     showStatus('Processing your agriculture question...', 'processing');
     
+    // Start progress monitoring for long requests
+    let progressTimer = null;
+    let timeoutWarningShown = false;
+    
     try {
+        // Get request parameters
         const requestData = {
             query: query,
-            // Enhanced RAG settings (with fallbacks)
             num_sub_queries: numSubQueriesSlider ? parseInt(numSubQueriesSlider.value) : 3,
             db_chunks_per_query: dbChunksSlider ? parseInt(dbChunksSlider.value) : 5,
             web_results_per_query: webResultsSlider ? parseInt(webResultsSlider.value) : 3,
-            synthesis_model: synthesisModelSelect ? synthesisModelSelect.value : 'llama3.2:latest',
             enable_database_search: enableDatabaseSearch ? enableDatabaseSearch.checked : true,
             enable_web_search: enableWebSearch ? enableWebSearch.checked : true,
-            // Legacy settings
+            synthesis_model: synthesisModelSelect ? synthesisModelSelect.value : 'llama3.2:latest',
+            // Legacy parameters for backward compatibility
             num_agents: 2,
             base_port: 11434
         };
+        
+        console.log('Processing query with parameters:', requestData);
+        
+        // Determine expected timeout based on model
+        const model = requestData.synthesis_model.toLowerCase();
+        let expectedTimeout;
+        if (model.includes('70b') || model.includes('72b')) {
+            expectedTimeout = 900000; // 15 minutes
+        } else if (model.includes('27b') || model.includes('30b')) {
+            expectedTimeout = 720000; // 12 minutes (increased from 8)
+        } else if (model.includes('13b') || model.includes('14b')) {
+            expectedTimeout = 480000; // 8 minutes (increased from 5)
+        } else if (model.includes('7b') || model.includes('8b')) {
+            expectedTimeout = 300000; // 5 minutes (increased from 3)
+        } else {
+            expectedTimeout = 180000; // 3 minutes (increased from 2)
+        }
+        
+        // Start progress monitoring
+        let elapsedTime = 0;
+        progressTimer = setInterval(() => {
+            elapsedTime += 10000; // 10 seconds
+            
+            const progressMessage = document.getElementById('progress-message');
+            if (progressMessage) {
+                if (elapsedTime >= 30000 && elapsedTime < 60000) {
+                    progressMessage.textContent = 'Analyzing database content and generating sub-queries...';
+                    showStatus('Processing... This may take a few minutes for comprehensive analysis', 'processing');
+                } else if (elapsedTime >= 60000 && elapsedTime < 120000) {
+                    progressMessage.textContent = 'Performing web search and retrieving relevant information...';
+                    showStatus('Still processing... Large models require more time for quality responses', 'processing');
+                } else if (elapsedTime >= 120000 && elapsedTime < expectedTimeout * 0.8) {
+                    progressMessage.textContent = `AI synthesis in progress using ${requestData.synthesis_model}...`;
+                    showStatus('Processing continues... Please be patient for comprehensive AI analysis', 'processing');
+                } else if (elapsedTime >= expectedTimeout * 0.8 && !timeoutWarningShown) {
+                    progressMessage.textContent = `Large model processing - this may take up to ${Math.round(expectedTimeout/60000)} minutes...`;
+                    showStatus(`Processing is taking longer than expected. Large model (${requestData.synthesis_model}) requires significant computation time.`, 'warning');
+                    timeoutWarningShown = true;
+                    
+                    // Show timeout info
+                    const timeoutInfo = document.getElementById('timeout-info');
+                    if (timeoutInfo) timeoutInfo.style.display = 'block';
+                }
+            }
+        }, 10000);
+        
+        // Make the request with appropriate timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), expectedTimeout + 30000); // Add 30s buffer
         
         const response = await fetch('/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requestData)
+            body: JSON.stringify(requestData),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        clearInterval(progressTimer);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
         const result = await response.json();
         
@@ -618,16 +679,33 @@ async function processQuery(query) {
         }
         
     } catch (error) {
+        clearInterval(progressTimer);
         console.error('Error processing query:', error);
-        showStatus('Error processing query', 'error');
-        responseContent.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+        
+        if (error.name === 'AbortError') {
+            showStatus(`Request timed out after ${Math.round(expectedTimeout/60000)} minutes. Try a smaller model for faster responses.`, 'error');
+            responseContent.innerHTML = `
+                <div class="error-message">
+                    <h3>⏱️ Request Timeout</h3>
+                    <p>The request timed out after ${Math.round(expectedTimeout/60000)} minutes.</p>
+                    <p><strong>Suggestions:</strong></p>
+                    <ul>
+                        <li>Try a smaller model (e.g., llama3.2:3b, gemma2:9b) for faster responses</li>
+                        <li>Reduce the number of sub-queries or search results</li>
+                        <li>Check if your system has sufficient resources</li>
+                    </ul>
+                </div>
+            `;
+        } else {
+            showStatus('Error processing query', 'error');
+            responseContent.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+        }
     } finally {
         isProcessing = false;
         showLoading(false);
+        if (progressTimer) clearInterval(progressTimer);
     }
-}
-
-// Display comprehensive response
+}// Display comprehensive response
 function displayResponse(result) {
     console.log('Displaying response:', result);
     
@@ -955,11 +1033,27 @@ async function loadAvailableModels() {
                 // Clear existing options
                 synthesisModelSelect.innerHTML = '';
                 
-                // Add available models
+                // Add available models with timeout information
                 result.models.forEach(model => {
                     const option = document.createElement('option');
                     option.value = model;
-                    option.textContent = model;
+                    
+                    // Add timeout information to model names
+                    let timeoutInfo = '';
+                    const modelLower = model.toLowerCase();
+                    if (modelLower.includes('70b') || modelLower.includes('72b')) {
+                        timeoutInfo = ' (⏰ ~15 min)';
+                    } else if (modelLower.includes('27b') || modelLower.includes('30b')) {
+                        timeoutInfo = ' (⏰ ~12 min)';
+                    } else if (modelLower.includes('13b') || modelLower.includes('14b')) {
+                        timeoutInfo = ' (⏰ ~8 min)';
+                    } else if (modelLower.includes('7b') || modelLower.includes('8b')) {
+                        timeoutInfo = ' (⏰ ~5 min)';
+                    } else if (modelLower.includes('3b') || modelLower.includes('1b')) {
+                        timeoutInfo = ' (⚡ ~3 min)';
+                    }
+                    
+                    option.textContent = model + timeoutInfo;
                     
                     // Mark recommended models
                     if (result.recommended && result.recommended.includes(model)) {
@@ -969,8 +1063,19 @@ async function loadAvailableModels() {
                     synthesisModelSelect.appendChild(option);
                 });
                 
-                // Set default to first recommended model
-                if (result.recommended && result.recommended.length > 0) {
+                // Set default to first recommended model, preferring smaller ones
+                const preferredModels = ['llama3.2:3b', 'llama3.2:latest', 'gemma2:9b', 'gemma2:latest'];
+                let defaultSet = false;
+                for (const preferred of preferredModels) {
+                    if (result.models.includes(preferred)) {
+                        synthesisModelSelect.value = preferred;
+                        defaultSet = true;
+                        break;
+                    }
+                }
+                
+                // Fallback to first recommended model
+                if (!defaultSet && result.recommended && result.recommended.length > 0) {
                     synthesisModelSelect.value = result.recommended[0];
                 }
             }
@@ -1055,7 +1160,24 @@ function updateStatusIndicator(element, isAvailable, text) {
 
 // Show loading indicator
 function showLoading(show) {
-    loadingIndicator.style.display = show ? 'flex' : 'none';
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = show ? 'flex' : 'none';
+        
+        if (show) {
+            // Reset progress message
+            const progressMessage = document.getElementById('progress-message');
+            if (progressMessage) {
+                progressMessage.textContent = 'Initializing Enhanced RAG Pipeline...';
+            }
+            
+            // Hide timeout info initially
+            const timeoutInfo = document.getElementById('timeout-info');
+            if (timeoutInfo) {
+                timeoutInfo.style.display = 'none';
+            }
+        }
+    }
 }
 
 // Show status message

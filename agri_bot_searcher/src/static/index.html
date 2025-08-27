@@ -338,11 +338,56 @@
 
         .loading-indicator {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 40px;
             font-size: 1.1rem;
             color: var(--primary-color);
+        }
+
+        .loading-indicator .progress-info {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .timeout-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #856404;
+        }
+
+        .timeout-warning h4 {
+            margin: 0 0 10px 0;
+            color: #d63031;
+        }
+
+        .model-timeout-info {
+            background: #e8f4fd;
+            border: 1px solid #74b9ff;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+
+        .model-timeout-info .timeout-scale {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .timeout-item {
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid var(--accent-color);
         }
 
         .spinner {
@@ -696,15 +741,15 @@
                     </div>
                 </div>
                 
-                <div class="form-group">
+                                <div class="form-group">
                     <label for="synthesis-model">Synthesis Model:</label>
                     <select id="synthesis-model" class="form-control">
-                        <option value="llama3.2:latest">llama3.2:latest</option>
-                        <option value="llama3.2:3b">llama3.2:3b</option>
-                        <option value="llama3.1:latest">llama3.1:latest</option>
-                        <option value="mistral:latest">mistral:latest</option>
+                        <option value="llama3.2:latest">Loading models...</option>
                     </select>
                     <button id="refresh-models" class="toggle-btn" style="margin-top: 5px;">🔄 Refresh</button>
+                    <div class="model-timeout-info" style="margin-top: 8px;">
+                        <small>💡 <strong>Tip:</strong> Smaller models (1B-3B) provide faster responses (~3 min) while larger models (27B+) offer higher quality but take longer (~12-15 min)</small>
+                    </div>
                 </div>
                 
                 <button id="toggle-legacy" class="toggle-btn">🔧 Toggle Legacy Settings</button>
@@ -822,7 +867,19 @@
             <div class="tab-content">
                 <div id="loading-indicator" class="loading-indicator" style="display: none;">
                     <div class="spinner"></div>
-                    Processing your query...
+                    <div>Processing your query...</div>
+                    <div class="progress-info">
+                        <div id="progress-message">Initializing Enhanced RAG Pipeline...</div>
+                        <div id="timeout-info" class="model-timeout-info" style="display: none;">
+                            <strong>⏱️ Processing Time Information:</strong>
+                            <div class="timeout-scale">
+                                <div class="timeout-item">🏃‍♂️ Small models (1B-3B): 3 min</div>
+                                <div class="timeout-item">🚶‍♂️ Medium models (7B-8B): 5 min</div>
+                                <div class="timeout-item">�‍♂️ Large models (13B-14B): 8 min</div>
+                                <div class="timeout-item">🐌 XL models (27B+): 12-15 min</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div id="response-content" class="tab-pane active">

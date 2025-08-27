@@ -785,6 +785,14 @@ class AnswerSynthesizer:
     def synthesize_answer(self, original_query: str, markdown_content: str, model: str = "gemma3:27b") -> str:
         """Synthesize final answer from markdown content with inline citations"""
         
+        # Optimize context size for large models to prevent timeouts
+        optimized_content = markdown_content
+        if '27b' in model.lower() or '70b' in model.lower():
+            # For very large models, truncate content if it's extremely long to prevent timeouts
+            if len(markdown_content) > 30000:  # ~30KB limit for large models
+                self.logger.warning(f"Truncating markdown content from {len(markdown_content)} to 30000 chars for large model {model}")
+                optimized_content = markdown_content[:30000] + "\n\n[Content truncated for processing efficiency - full content available in markdown tab]"
+        
         prompt = f"""You are an expert agricultural consultant. Based on the comprehensive research report below, provide a detailed and accurate answer to the user's question.
 
 CRITICAL INSTRUCTIONS FOR CITATIONS:
@@ -804,15 +812,26 @@ Additional Guidelines:
 - Include a "References" section at the end listing all citations used
 
 Research Report:
-{markdown_content}
+{optimized_content}
 
 User's Original Question: {original_query}
 
 Comprehensive Answer with Inline Citations:"""
 
         try:
-            # Increase timeout for larger models
-            timeout_seconds = 300 if '70b' in model.lower() or '72b' in model.lower() else 180
+            # Enhanced timeout calculation for larger models
+            if '70b' in model.lower() or '72b' in model.lower():
+                timeout_seconds = 900  # 15 minutes for 70B+ models
+            elif '27b' in model.lower() or '30b' in model.lower():
+                timeout_seconds = 720  # 12 minutes for 27B-30B models (was 8 min)
+            elif '13b' in model.lower() or '14b' in model.lower():
+                timeout_seconds = 480  # 8 minutes for 13B-14B models (was 5 min)
+            elif '7b' in model.lower() or '8b' in model.lower():
+                timeout_seconds = 300  # 5 minutes for 7B-8B models (was 3 min)
+            else:
+                timeout_seconds = 180  # 3 minutes for smaller models (was 2 min)
+            
+            self.logger.info(f"Using {timeout_seconds}s timeout for model {model}")
             
             response = requests.post(
                 f'{self.ollama_host}/api/generate',
@@ -838,19 +857,46 @@ Comprehensive Answer with Inline Citations:"""
                 
         except Exception as e:
             self.logger.error(f"Error synthesizing answer: {e}")
-            # Return the markdown content as a fallback with a clear error message
-            if "Read timed out" in str(e):
-                return f"""**Note**: The AI synthesis step timed out due to the large model size. Here is the comprehensive research report instead:
+            # Enhanced fallback handling with timeout-specific messaging
+            if "Read timed out" in str(e) or "timeout" in str(e).lower():
+                return f"""**⏱️ Processing Timeout Notice**
 
----
+The AI synthesis step timed out after {timeout_seconds} seconds due to the computational requirements of the large model `{model}`. However, comprehensive research has been completed.
 
-{markdown_content[:2000]}...
+**📊 Research Summary:**
+- Database chunks retrieved and analyzed
+- Web search results gathered and processed  
+- Information synthesized into structured report
 
-*[Report truncated for display. Full markdown available in the Pipeline Info tab.]*
+**🔍 Complete Research Report:**
 
-**Summary**: Based on the retrieved information, the query has been thoroughly researched but the final AI synthesis could not be completed due to timeout constraints."""
+{markdown_content[:3000]}...
+
+*[Report continues in the Pipeline Info and Full Markdown tabs]*
+
+**💡 Recommendations:**
+- Switch to a smaller model (e.g., llama3.2:3b, gemma2:9b) for faster responses
+- Review the complete research in the "Full Markdown" tab
+- The retrieved information is comprehensive and ready for analysis
+
+**📚 Note**: All retrieved information, citations, and detailed pipeline information are available in the respective tabs above."""
             else:
-                return f"Error generating answer: {str(e)}\n\nFallback: Please check the Pipeline Info tab for the complete research report."
+                return f"""**❌ Processing Error**
+
+An error occurred during AI synthesis: {str(e)}
+
+**📋 Fallback Information Available:**
+Please check the following tabs for complete research data:
+- **Pipeline Info**: Detailed processing steps and debug information
+- **Full Markdown**: Complete structured research report  
+- **Citations**: Source references and links
+
+**🔧 Troubleshooting:**
+- Verify that Ollama is running: `ollama serve`
+- Check if the model is available: `ollama list`
+- Try a different model if the current one is unavailable
+
+The research and retrieval phases completed successfully - only the final synthesis step encountered issues."""
 
 
 class MultiAgentRetriever:
