@@ -128,6 +128,22 @@ else:
     log_success "System requirements check passed"
 }
 
+# Ensure uv is installed
+ensure_uv() {
+    log_info "Checking for uv package manager..."
+    if ! command -v uv &> /dev/null; then
+        log_warning "uv not found. Installing uv..."
+        if command -v pipx &> /dev/null; then
+            pipx install uv
+        else
+            pip install --upgrade uv
+        fi
+        log_success "uv installed successfully"
+    else
+        log_success "uv is already installed"
+    fi
+}
+
 # Create and setup virtual environment
 setup_virtual_environment() {
     log_info "Setting up virtual environment..."
@@ -146,19 +162,22 @@ setup_virtual_environment() {
     log_success "Virtual environment created and activated"
 }
 
-# Install Python dependencies
+# Install Python dependencies using uv
 install_python_dependencies() {
-    log_info "Installing Python dependencies from unified requirements.txt..."
+    log_info "Installing Python dependencies from requirements.txt using uv..."
     
     if [ ! -f "$REQUIREMENTS_FILE" ]; then
         log_error "Requirements file not found: $REQUIREMENTS_FILE"
         exit 1
     fi
     
-    # Install core dependencies
-    pip install -r "$REQUIREMENTS_FILE"
+    # Ensure uv exists
+    ensure_uv
+
+    # Use uv inside the venv
+    uv pip install -r "$REQUIREMENTS_FILE"
     
-    log_success "Python dependencies installed successfully"
+    log_success "Python dependencies installed successfully with uv"
 }
 
 # Install Ollama
@@ -170,22 +189,16 @@ install_ollama() {
         return
     fi
     
-    # Install Ollama
     curl -fsSL https://ollama.ai/install.sh | sh
     
-    # Start Ollama service
     if command -v systemctl &> /dev/null; then
         sudo systemctl enable ollama
         sudo systemctl start ollama
     else
-        # Start Ollama in background for non-systemd systems
         nohup ollama serve > /tmp/ollama.log 2>&1 &
     fi
     
-    # Wait for Ollama to start
     sleep 5
-    
-    # Pull the specified model
     log_info "Downloading Ollama model: $OLLAMA_MODEL"
     ollama pull "$OLLAMA_MODEL"
     
@@ -200,19 +213,15 @@ setup_environment() {
 # IndicAgri Bot Environment Configuration
 # Generated on $(date)
 
-# Voice transcription settings
 VOICE_ENABLED=$VOICE_ENABLED
 DEFAULT_VOICE_ENGINE=conformer
 
-# RAG system settings
 RAG_ENABLED=$RAG_ENABLED
 RAG_MODEL=Qwen/Qwen3-Embedding-8B
 
-# Ollama settings
 OLLAMA_HOST=http://localhost:11434
 OLLAMA_MODEL=$OLLAMA_MODEL
 
-# Web UI settings
 WEB_HOST=0.0.0.0
 WEB_PORT=5000
 
@@ -220,7 +229,6 @@ WEB_PORT=5000
 # HUGGINGFACE_TOKEN=your_token_here
 # SARVAM_API_KEY=your_api_key_here
 
-# Logging
 LOG_LEVEL=INFO
 EOF
     
@@ -234,15 +242,11 @@ create_startup_script() {
     cat > "$PROJECT_ROOT/start_indicagri_bot.sh" << 'EOF'
 #!/bin/bash
 
-# IndicAgri Bot Startup Script
-
-# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 VENV_PATH="$PROJECT_ROOT/agri_bot_env"
 AGRI_BOT_PATH="$PROJECT_ROOT/agri_bot_searcher"
 
-# Color codes
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
@@ -251,21 +255,17 @@ NC='\033[0m'
 
 echo -e "${BLUE}Starting IndicAgri Bot...${NC}"
 
-# Check virtual environment
 if [ ! -d "$VENV_PATH" ]; then
     echo -e "${RED}Virtual environment not found. Please run installation first.${NC}"
     exit 1
 fi
 
-# Activate virtual environment
 source "$VENV_PATH/bin/activate"
 
-# Load environment variables
 if [ -f "$PROJECT_ROOT/.env" ]; then
     source "$PROJECT_ROOT/.env"
 fi
 
-# Start Ollama if not running
 if ! pgrep -x "ollama" > /dev/null; then
     echo -e "${YELLOW}Starting Ollama service...${NC}"
     if command -v systemctl &> /dev/null; then
@@ -276,10 +276,8 @@ if ! pgrep -x "ollama" > /dev/null; then
     fi
 fi
 
-# Navigate to application directory
 cd "$AGRI_BOT_PATH"
 
-# Check available UI modes
 if [ "$VOICE_ENABLED" = "true" ] && [ -f "src/enhanced_voice_web_ui.py" ]; then
     echo -e "${GREEN}🎤 Starting IndicAgri Bot with Voice Support${NC}"
     echo -e "${BLUE}Access the bot at: http://localhost:5000${NC}"
@@ -296,7 +294,6 @@ fi
 EOF
     
     chmod +x "$PROJECT_ROOT/start_indicagri_bot.sh"
-    
     log_success "Startup script created: start_indicagri_bot.sh"
 }
 
@@ -340,5 +337,4 @@ main() {
     echo
 }
 
-# Run main function
 main "$@"
