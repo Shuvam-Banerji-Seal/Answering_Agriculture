@@ -208,17 +208,31 @@ if HAS_FLASK:
                     'processing_time': round(processing_time, 2),
                     'pipeline_info': result.get('pipeline_info', {}),
                     'markdown_content': result.get('markdown_content', ''),
-                    'citations': result.get('citations', []),
+                    'citations': result.get('citations', []),  # Citations used in the answer
+                    'all_citations': result.get('all_citations', []),  # All available citations
+                    'citations_count': len(result.get('citations', [])),
                     'sub_queries_count': len(result.get('pipeline_info', {}).get('sub_queries', [])),
                     'db_results_count': result.get('pipeline_info', {}).get('total_db_chunks', 0),
                     'web_results_count': result.get('pipeline_info', {}).get('total_web_results', 0),
                     'search_stats': {
                         'total_db_chunks': result.get('pipeline_info', {}).get('total_db_chunks', 0),
                         'total_web_results': result.get('pipeline_info', {}).get('total_web_results', 0),
-                        'sub_queries_processed': len(result.get('pipeline_info', {}).get('sub_queries', []))
+                        'sub_queries_processed': len(result.get('pipeline_info', {}).get('sub_queries', [])),
+                        'citations_used': len(result.get('citations', [])),
+                        'total_citations_available': len(result.get('all_citations', []))
                     },
                     'sub_query_results': result.get('pipeline_info', {}).get('sub_query_results', [])
                 }
+                
+                # Log citation information for debugging
+                citations = result.get('citations', [])
+                all_citations = result.get('all_citations', [])
+                print(f"📖 Citations in response: {len(citations)} used out of {len(all_citations)} available")
+                if citations:
+                    citation_ids = [c.get('id', 'Unknown') for c in citations]
+                    print(f"📋 Citation IDs used: {citation_ids}")
+                else:
+                    print("⚠️ No citations found in the response!")
                 
                 return jsonify(enhanced_result)
                 

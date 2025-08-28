@@ -932,13 +932,18 @@ class AnswerSynthesizer:
         prompt = f"""You are an expert agricultural consultant. Based on the comprehensive research report below, provide a detailed and accurate answer to the user's question.
 
 CRITICAL INSTRUCTIONS FOR CITATIONS:
-1. You MUST include inline citations for every factual claim
-2. Use the exact citation format provided in the research report (e.g., [DB-1-2], [WEB-2-1])
-3. When citing database sources, use [DB-X-Y] format
-4. When citing web sources, use [WEB-X-Y] format
+1. You MUST include inline citations for EVERY factual claim using the EXACT format from the research report
+2. Use ONLY the citation IDs provided in the research report (e.g., [DB-1-1], [WEB-2-3])
+3. When citing database sources, use [DB-X-Y] format where X is sub-query number and Y is result number
+4. When citing web sources, use [WEB-X-Y] format where X is sub-query number and Y is result number
 5. Multiple citations can be combined like [DB-1-1][WEB-2-3]
-6. Every sentence with factual information should have at least one citation
+6. Every sentence with factual information MUST have at least one citation
 7. Do not make claims without proper citations from the provided sources
+8. Copy the citation format EXACTLY as shown in the report
+9. If you reference any information from the report, you MUST include the corresponding citation
+
+EXAMPLE OF PROPER CITATION USAGE:
+"Wheat requires well-drained soil with pH between 6.0-7.5 [DB-1-2]. Modern wheat varieties can yield 40-60 quintals per hectare [WEB-1-1]. Nitrogen application should be split into 3-4 doses [DB-2-1][WEB-1-3]."
 
 Additional Guidelines:
 - Provide a comprehensive yet focused answer
@@ -946,13 +951,14 @@ Additional Guidelines:
 - If information is insufficient, acknowledge the limitations
 - Only use information from the provided research report
 - Include a "References" section at the end listing all citations used
+- Be sure to include citations in your References section too
 
 Research Report:
 {optimized_content}
 
 User's Original Question: {original_query}
 
-Comprehensive Answer with Inline Citations:"""
+Comprehensive Answer with Inline Citations (REQUIRED):"""
 
         try:
             # Enhanced timeout calculation for larger models
@@ -987,6 +993,18 @@ Comprehensive Answer with Inline Citations:"""
             if response.status_code == 200:
                 answer = response.json()['response'].strip()
                 self.logger.info(f"Synthesized answer with citations using {model}")
+                
+                # Check if citations are present in the answer
+                import re
+                citation_pattern = r'\[(DB|WEB)-(\d+)-(\d+)\]'
+                citations_found = len(re.findall(citation_pattern, answer))
+                
+                if citations_found == 0:
+                    self.logger.warning("No citations found in synthesized answer, adding citation reminder")
+                    answer += "\n\n**Note:** This answer is based on research from multiple sources. Please refer to the citations in the detailed research report for specific source information."
+                else:
+                    self.logger.info(f"Found {citations_found} citations in synthesized answer")
+                
                 return answer
             else:
                 return f"Error generating answer: {response.status_code}"
@@ -1314,6 +1332,13 @@ class EnhancedRAGSystem:
         print(f"   - Final answer length: {len(final_answer)} characters")
         print(f"   - Markdown report length: {len(markdown_content)} characters")
         
+        # Extract all citations and filter to only those used in the final answer
+        all_citations = self._extract_citations(sub_query_results)
+        used_citations = self._extract_citations_from_answer(final_answer, all_citations)
+        
+        print(f"   - Total citations available: {len(all_citations)}")
+        print(f"   - Citations used in final answer: {len(used_citations)}")
+        
         # Create comprehensive result structure
         result = {
             'success': True,
@@ -1342,7 +1367,8 @@ class EnhancedRAGSystem:
             },
             'markdown_content': markdown_content,
             'markdown_file_path': temp_file_path,
-            'citations': self._extract_citations(sub_query_results),
+            'citations': used_citations,  # Only citations actually used in the answer
+            'all_citations': all_citations,  # All available citations for reference
             'processing_time': processing_time
         }
         
@@ -1361,7 +1387,8 @@ class EnhancedRAGSystem:
                     'title': db_result.title or db_result.source,
                     'source': db_result.source,
                     'content_preview': db_result.chunk_text[:200] + "..." if len(db_result.chunk_text) > 200 else db_result.chunk_text,
-                    'similarity_score': db_result.similarity_score
+                    'similarity_score': db_result.similarity_score,
+                    'full_content': db_result.chunk_text
                 })
             
             # Web citations
@@ -1372,10 +1399,33 @@ class EnhancedRAGSystem:
                     'title': web_result.title,
                     'url': web_result.url,
                     'content_preview': web_result.snippet[:200] + "..." if len(web_result.snippet) > 200 else web_result.snippet,
-                    'relevance_score': web_result.relevance_score
+                    'relevance_score': web_result.relevance_score,
+                    'full_content': web_result.content or web_result.snippet
                 })
         
         return citations
+    
+    def _extract_citations_from_answer(self, answer: str, all_citations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Extract citations that are actually used in the final answer"""
+        import re
+        
+        # Find all citation patterns in the answer
+        citation_pattern = r'\[(DB|WEB)-(\d+)-(\d+)\]'
+        used_citation_ids = set()
+        
+        for match in re.finditer(citation_pattern, answer):
+            citation_id = f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
+            used_citation_ids.add(citation_id)
+        
+        # Filter citations to only include those used in the answer
+        used_citations = [
+            citation for citation in all_citations
+            if citation['id'] in used_citation_ids
+        ]
+        
+        self.logger.info(f"Found {len(used_citation_ids)} citations used in answer out of {len(all_citations)} total citations")
+        
+        return used_citations
     
     def _process_sub_query(self, sub_query: str, db_chunks: int, web_results: int, 
                           enable_db: bool = True, enable_web: bool = True) -> SubQueryResult:
