@@ -45,6 +45,61 @@ except ImportError:
         HAS_DDGS = False
 
 
+def check_offline_model(model_name: str) -> Optional[str]:
+    """
+    Check if a HuggingFace model exists offline and return the local path
+    """
+    try:
+        import os
+        from pathlib import Path
+        
+        # Check HuggingFace cache directory
+        hf_cache_dir = os.path.expanduser("~/.cache/huggingface/hub/")
+        
+        # Convert model name to cache directory format
+        cache_model_name = f"models--{model_name.replace('/', '--')}"
+        model_cache_path = os.path.join(hf_cache_dir, cache_model_name)
+        
+        if os.path.exists(model_cache_path):
+            print(f"✅ Found offline model: {model_name} at {model_cache_path}")
+            return model_name  # Return original name for SentenceTransformer
+        else:
+            print(f"❌ Offline model not found: {model_name}")
+            return None
+            
+    except Exception as e:
+        print(f"⚠️ Error checking offline model {model_name}: {e}")
+        return None
+
+
+def get_available_embedding_models() -> List[str]:
+    """
+    Get list of available embedding models (offline first, then fallbacks)
+    """
+    # Preferred models in order of preference
+    preferred_models = [
+        "Qwen/Qwen3-Embedding-8B",
+        "Qwen/Qwen3-Embedding-4B", 
+        "sentence-transformers/all-MiniLM-L6-v2",
+        "sentence-transformers/all-mpnet-base-v2",
+        "BAAI/bge-small-en-v1.5"
+    ]
+    
+    available_models = []
+    
+    # Check which models are available offline
+    for model in preferred_models:
+        if check_offline_model(model):
+            available_models.append(model)
+    
+    # If no offline models found, add fallback models that can be downloaded
+    if not available_models:
+        available_models = ["sentence-transformers/all-MiniLM-L6-v2"]
+        print("⚠️ No offline embedding models found, will attempt to download fallback model")
+    
+    return available_models
+
+
 @dataclass
 class SearchResult:
     """Web search result with metadata"""
@@ -228,7 +283,7 @@ class DatabaseRetriever:
     
     def __init__(self, embeddings_dir: str, model_name: str = "Qwen/Qwen3-Embedding-8B"):
         self.embeddings_dir = embeddings_dir
-        self.model_name = model_name
+        self.original_model_name = model_name
         self.logger = logging.getLogger(__name__)
         
         if not HAS_SENTENCE_TRANSFORMERS:
@@ -238,8 +293,89 @@ class DatabaseRetriever:
         self.device = 'cuda' if HAS_TORCH and torch.cuda.is_available() and self._check_gpu_memory() else 'cpu'
         self.logger.info(f"Using device: {self.device}")
         
-        # Load embedding model with GPU support
-        self.embedding_model = SentenceTransformer(model_name, device=self.device)
+        # Find the best available embedding model
+        self.model_name = self._find_best_embedding_model(model_name)
+        self.logger.info(f"Selected embedding model: {self.model_name}")
+        
+        # Load embedding model with offline-first approach
+        self.embedding_model = self._load_embedding_model()
+        
+        # Load pre-computed embeddings
+        self.load_embeddings()
+    
+    def _find_best_embedding_model(self, preferred_model: str) -> str:
+        """Find the best available embedding model, preferring offline models"""
+        
+        self.logger.info(f"Looking for embedding model: {preferred_model}")
+        
+        # First, check if the preferred model is available offline
+        if check_offline_model(preferred_model):
+            self.logger.info(f"✅ Found preferred model offline: {preferred_model}")
+            return preferred_model
+        
+        # If preferred model not available, check other available models
+        self.logger.warning(f"❌ Preferred model {preferred_model} not found offline")
+        self.logger.info("🔍 Checking for alternative offline models...")
+        
+        available_models = get_available_embedding_models()
+        
+        if available_models:
+            selected_model = available_models[0]
+            self.logger.info(f"✅ Selected alternative model: {selected_model}")
+            return selected_model
+        else:
+            # Fallback to a small model that can be downloaded
+            fallback_model = "sentence-transformers/all-MiniLM-L6-v2"
+            self.logger.warning(f"⚠️ No offline models found, will try to download: {fallback_model}")
+            return fallback_model
+    
+    def _load_embedding_model(self) -> SentenceTransformer:
+        """Load the embedding model with proper error handling"""
+        
+        try:
+            self.logger.info(f"🔄 Loading embedding model: {self.model_name}")
+            
+            # First try to load with local_files_only=True for offline models
+            try:
+                model = SentenceTransformer(self.model_name, device=self.device, local_files_only=True)
+                self.logger.info(f"✅ Successfully loaded model offline: {self.model_name}")
+                return model
+            except Exception as offline_error:
+                self.logger.info(f"⚠️ Failed to load offline, trying online: {offline_error}")
+                # Try without local_files_only (will download if needed)
+                model = SentenceTransformer(self.model_name, device=self.device)
+                self.logger.info(f"✅ Successfully loaded model online: {self.model_name}")
+                return model
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to load embedding model {self.model_name}: {e}")
+            
+            # Try fallback models
+            fallback_models = ["sentence-transformers/all-MiniLM-L6-v2", "sentence-transformers/all-mpnet-base-v2"]
+            
+            for fallback_model in fallback_models:
+                try:
+                    self.logger.info(f"🔄 Trying fallback model: {fallback_model}")
+                    
+                    # Try offline first
+                    try:
+                        model = SentenceTransformer(fallback_model, device=self.device, local_files_only=True)
+                        self.logger.info(f"✅ Successfully loaded fallback model offline: {fallback_model}")
+                        self.model_name = fallback_model  # Update the model name
+                        return model
+                    except Exception:
+                        # Try online if offline fails
+                        model = SentenceTransformer(fallback_model, device=self.device)
+                        self.logger.info(f"✅ Successfully loaded fallback model online: {fallback_model}")
+                        self.model_name = fallback_model  # Update the model name
+                        return model
+                    
+                except Exception as fallback_error:
+                    self.logger.warning(f"❌ Failed to load fallback model {fallback_model}: {fallback_error}")
+                    continue
+            
+            # If all models fail, raise the original error
+            raise RuntimeError(f"Failed to load both {self.model_name} and fallback models: {str(e)}")
         
         # Load pre-computed embeddings
         self.load_embeddings()
