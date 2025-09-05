@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat&logo=python&logoColor=white)](https://python.org)
 [![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-Dataset-yellow)](https://huggingface.co/datasets/ShuvBan/IndicAgri)
-[![Voice Support](https://img.shields.io/badge/voice-10%20Indian%20languages-green.svg)](https://github.com/AI4Bharat)
+[![Voice Support](https://img.shields.io/badge/voice-20+%20Indian%20languages-green.svg)](https://github.com/AI4Bharat)
 [![License: BSD3](https://img.shields.io/badge/License-BSD3-yellow.svg)](https://opensource.org/license/bsd-3-clause-open-mpi)
 
 ## 📝 Abstract
